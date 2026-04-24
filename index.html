@@ -36,7 +36,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
 .btn-sm{font-family:var(--sans);font-size:12px;padding:6px 14px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;}
 .main{max-width:640px;margin:32px auto;padding:0 24px 60px;}
 .form-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:28px;margin-bottom:16px;}
-.form-card h2{font-size:14px;font-weight:600;margin-bottom:18px;color:var(--text);}
+.form-card h2{font-size:14px;font-weight:600;margin-bottom:18px;}
 .field{margin-bottom:16px;}
 .field label{display:block;font-size:11px;font-family:var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;}
 .field input,.field select,.field textarea{width:100%;font-family:var(--sans);font-size:13px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg);color:var(--text);outline:none;}
@@ -53,7 +53,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
 .priority-opt.active-medium{background:var(--blue-bg);border-color:var(--blue-b);color:var(--blue);}
 .priority-opt.active-low{background:#f0fdf4;border-color:#bbf7d0;color:#166534;}
 .char-count{font-size:11px;color:var(--text3);text-align:right;margin-top:4px;font-family:var(--mono);}
-.submit-btn{width:100%;background:#1a1916;color:#fff;border:none;border-radius:var(--r-sm);padding:13px;font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px;}
+.submit-btn{width:100%;background:#1a1916;color:#fff;border:none;border-radius:var(--r-sm);padding:13px;font-size:14px;font-weight:500;cursor:pointer;margin-top:4px;}
 .submit-btn:hover{opacity:.85;}
 .submit-btn:disabled{opacity:.5;cursor:not-allowed;}
 .status-msg{padding:12px 16px;border-radius:var(--r-sm);font-size:13px;margin-bottom:16px;display:none;}
@@ -69,7 +69,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
 </style>
 </head>
 <body>
-
 <div id="login-screen">
   <div class="login-card">
     <h1>IT Support Portal</h1>
@@ -77,19 +76,14 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
     <button class="btn-login" onclick="login()">Sign in with Microsoft 365</button>
   </div>
 </div>
-
 <div id="app-screen">
   <div class="header">
-    <div>
-      <div class="header-title">IT Support Portal</div>
-      <div class="header-sub">Top Coat Fabrication</div>
-    </div>
+    <div><div class="header-title">IT Support Portal</div><div class="header-sub">Top Coat Fabrication</div></div>
     <div class="header-right">
       <span class="user-badge" id="user-name"></span>
       <button class="btn-sm" onclick="logout()">Sign out</button>
     </div>
   </div>
-
   <div id="success-screen">
     <div class="success-card">
       <div class="success-icon">✓</div>
@@ -100,13 +94,10 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
       <button class="new-ticket-btn" onclick="resetForm()">Submit Another Ticket</button>
     </div>
   </div>
-
   <div class="main" id="form-wrap">
     <div id="status-msg" class="status-msg"></div>
-
     <div class="form-card">
       <h2>Report an Issue</h2>
-
       <div class="field" id="field-priority">
         <label>Priority</label>
         <div class="priority-row">
@@ -117,24 +108,20 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
         </div>
         <div class="err-msg" id="priority-error">Please select a priority level.</div>
       </div>
-
       <div class="field" id="field-name">
         <label>Full Name</label>
         <input type="text" id="f-name" placeholder="Your full name">
         <div class="err-msg">This field is required.</div>
       </div>
-
       <div class="field" id="field-email">
         <label>Email Address</label>
         <input type="email" id="f-email" placeholder="you@topcoatfab.com">
         <div class="err-msg">Please enter a valid email address.</div>
       </div>
-
-      <div class="field" id="field-dept">
+      <div class="field">
         <label>Department</label>
         <input type="text" id="f-dept" placeholder="e.g. Production, Admin, Sales">
       </div>
-
       <div class="field" id="field-category">
         <label>Category</label>
         <select id="f-category">
@@ -150,38 +137,41 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
         </select>
         <div class="err-msg">Please select a category.</div>
       </div>
-
       <div class="field" id="field-subject">
         <label>Subject</label>
         <input type="text" id="f-subject" placeholder="Brief summary of the issue">
         <div class="err-msg">This field is required.</div>
       </div>
-
       <div class="field">
         <label>Description</label>
         <textarea id="f-description" placeholder="Describe the issue in detail…" oninput="updateChar()" maxlength="500"></textarea>
         <div class="char-count"><span id="char-count">0</span> / 500</div>
       </div>
-
       <div class="field">
         <label>Device / Location (optional)</label>
         <input type="text" id="f-device" placeholder="e.g. Dell laptop in office 3">
       </div>
-
-      <button class="submit-btn" id="submit-btn" onclick="submitTicket()">
-        Submit Ticket
-      </button>
+      <button class="submit-btn" id="submit-btn" onclick="submitTicket()">Submit Ticket</button>
     </div>
   </div>
 </div>
-
 <script>
+
 const CLIENT_ID = 'd422751a-06b5-4c2b-aaf5-26da4c31ca65';
 const TENANT_ID = '33f05b13-a7a5-4e78-8e18-d69170b7da13';
 const SCOPES = ['Sites.ReadWrite.All', 'User.Read'];
-const FILE_URL = 'https://graph.microsoft.com/v1.0/sites/netorgft14077536.sharepoint.com:/sites/TopCoatMain:/drive/root:/Leadership Team/IT/IT Tickets/it_tickets_data.json:/content';
+const SITE_URL = 'https://graph.microsoft.com/v1.0/sites/netorgft14077536.sharepoint.com:/sites/TopCoatMain:';
+const FOLDER_PATH = 'Leadership Team/IT/IT Tickets';
+const FILE_NAME = 'it_tickets_data.json';
 
-let msalInstance, token, tickets = [], ticketCounter = 0, selPriority = null;
+let msalInstance, token, tickets = [], ticketCounter = 0, _fileUrl = null;
+
+async function getFileUrl() {
+  if (_fileUrl) return _fileUrl;
+  // Try the default drive (Documents library)
+  _fileUrl = `${SITE_URL}/drive/root:/${FOLDER_PATH}/${FILE_NAME}:/content`;
+  return _fileUrl;
+}
 
 async function initAuth() {
   msalInstance = new msal.PublicClientApplication({
@@ -206,38 +196,76 @@ async function initAuth() {
 
 function showLogin() {
   document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('app-screen').style.display = 'none';
-}
-function showApp(account) {
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app-screen').style.display = 'block';
-  document.getElementById('user-name').textContent = account.name || account.username;
+  if (document.getElementById('app-screen')) document.getElementById('app-screen').style.display = 'none';
 }
 async function login() { await msalInstance.loginRedirect({ scopes: SCOPES }); }
 async function logout() { await msalInstance.logoutRedirect(); }
 
 async function loadTickets() {
+  const url = await getFileUrl();
   try {
-    const res = await fetch(FILE_URL, { headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (res.status === 404) { tickets = []; ticketCounter = 0; return; }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`HTTP ${res.status}: ${txt}`);
+    }
     const data = await res.json();
     tickets = Array.isArray(data) ? data : (data.tickets || []);
     ticketCounter = Array.isArray(data) ? tickets.length : (data.ticketCounter || tickets.length);
   } catch(e) {
-    if (e.message.includes('404')) { tickets = []; ticketCounter = 0; }
+    if (e.message.includes('404') || e.message.includes('itemNotFound')) { tickets = []; ticketCounter = 0; }
     else throw e;
   }
 }
 
 async function saveTickets() {
+  // First ensure the folder exists by creating it if needed
+  await ensureFolder();
+  const url = await getFileUrl();
   const content = JSON.stringify({ tickets, ticketCounter }, null, 2);
-  const res = await fetch(FILE_URL, {
+  const res = await fetch(url, {
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: content
   });
-  if (!res.ok) throw new Error(`Save failed HTTP ${res.status}`);
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Save failed HTTP ${res.status}: ${txt}`);
+  }
+}
+
+async function ensureFolder() {
+  // Create folders one level at a time if they don't exist
+  const parts = FOLDER_PATH.split('/');
+  let currentPath = '';
+  for (const part of parts) {
+    currentPath = currentPath ? `${currentPath}/${part}` : part;
+    const checkUrl = `${SITE_URL}/drive/root:/${currentPath}`;
+    const res = await fetch(checkUrl, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.status === 404) {
+      // Create the folder
+      const parentPath = currentPath.includes('/') ? currentPath.substring(0, currentPath.lastIndexOf('/')) : '';
+      const folderName = part;
+      const createUrl = parentPath
+        ? `${SITE_URL}/drive/root:/${parentPath}:/children`
+        : `${SITE_URL}/drive/root/children`;
+      await fetch(createUrl, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: folderName, folder: {}, "@microsoft.graph.conflictBehavior": "rename" })
+      });
+    }
+  }
+}
+
+
+let selPriority = null;
+
+function showApp(account) {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+  document.getElementById('user-name').textContent = account.name || account.username;
 }
 
 function selP(p, el) {
@@ -268,7 +296,7 @@ async function submitTicket() {
   if (!validate()) return;
   const btn = document.getElementById('submit-btn');
   btn.disabled = true; btn.textContent = 'Submitting…';
-  showStatusMsg('', '');
+  showStatusMsg('','');
   try {
     await loadTickets();
     ticketCounter++;
@@ -296,7 +324,7 @@ async function submitTicket() {
     document.getElementById('form-wrap').style.display = 'none';
     document.getElementById('success-screen').style.display = 'block';
   } catch(e) {
-    showStatusMsg('err', 'Failed to submit: ' + e.message);
+    showStatusMsg('err','Failed to submit: ' + e.message);
     btn.disabled = false; btn.textContent = 'Submit Ticket';
   }
 }
@@ -309,13 +337,13 @@ function showStatusMsg(type, msg) {
 function resetForm() {
   selPriority = null;
   document.querySelectorAll('.priority-opt').forEach(o => o.className = 'priority-opt');
-  ['f-name','f-email','f-dept','f-subject','f-description','f-device'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('f-category').value = '';
-  document.getElementById('char-count').textContent = '0';
-  document.getElementById('success-screen').style.display = 'none';
-  document.getElementById('form-wrap').style.display = 'block';
-  const btn = document.getElementById('submit-btn');
-  btn.disabled = false; btn.textContent = 'Submit Ticket';
+  ['f-name','f-email','f-dept','f-subject','f-description','f-device'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('f-category').value='';
+  document.getElementById('char-count').textContent='0';
+  document.getElementById('success-screen').style.display='none';
+  document.getElementById('form-wrap').style.display='block';
+  const btn=document.getElementById('submit-btn');
+  btn.disabled=false; btn.textContent='Submit Ticket';
 }
 
 initAuth();
