@@ -167,121 +167,114 @@ tr:hover td{background:var(--bg2);cursor:pointer;}
 const CLIENT_ID = 'd422751a-06b5-4c2b-aaf5-26da4c31ca65';
 const TENANT_ID = '33f05b13-a7a5-4e78-8e18-d69170b7da13';
 const SCOPES = ['Sites.ReadWrite.All', 'User.Read'];
-const SITE_URL = 'https://graph.microsoft.com/v1.0/sites/netorgft14077536.sharepoint.com:/sites/TopCoatMain:';
+const SITE_HOSTNAME = 'netorgft14077536.sharepoint.com';
+const SITE_PATH = '/sites/TopCoatMain';
 const FOLDER_PATH = 'Leadership Team/IT/IT Tickets';
 const FILE_NAME = 'it_tickets_data.json';
 
-let msalInstance, token, tickets = [], ticketCounter = 0, editingId = null;
+let msalInstance, token, tickets=[], ticketCounter=0, editingId=null, _driveId=null;
+
+async function getDriveId() {
+  if (_driveId) return _driveId;
+  const res = await fetch(
+    `https://graph.microsoft.com/v1.0/sites/${SITE_HOSTNAME}:${SITE_PATH}:/drives`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok) throw new Error(`Could not get drives: HTTP ${res.status}`);
+  const data = await res.json();
+  const docLib = data.value.find(d=>d.driveType==='documentLibrary') || data.value[0];
+  if (!docLib) throw new Error('No document library found');
+  _driveId = docLib.id;
+  return _driveId;
+}
 
 async function getFileUrl() {
-  return `${SITE_URL}/drive/root:/${FOLDER_PATH}/${FILE_NAME}:/content`;
-}
-
-async function initAuth() {
-  msalInstance = new msal.PublicClientApplication({
-    auth: {
-      clientId: CLIENT_ID,
-      authority: `https://login.microsoftonline.com/${TENANT_ID}`,
-      redirectUri: window.location.href.split('?')[0].split('#')[0]
-    },
-    cache: { cacheLocation: 'sessionStorage' }
-  });
-  await msalInstance.initialize();
-  const result = await msalInstance.handleRedirectPromise();
-  if (result) { token = result.accessToken; showApp(result.account); return; }
-  const accounts = msalInstance.getAllAccounts();
-  if (accounts.length) {
-    try {
-      const r = await msalInstance.acquireTokenSilent({ scopes: SCOPES, account: accounts[0] });
-      token = r.accessToken; showApp(accounts[0]);
-    } catch(e) { showLogin(); }
-  } else { showLogin(); }
-}
-
-function showLogin() {
-  document.getElementById('login-screen').style.display='flex';
-  document.getElementById('app-screen').style.display='none';
-}
-async function login() { await msalInstance.loginRedirect({ scopes: SCOPES }); }
-async function logout() { await msalInstance.logoutRedirect(); }
-
-async function loadTickets() {
-  const url = await getFileUrl();
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (res.status === 404) { tickets=[]; ticketCounter=0; return; }
-  if (!res.ok) { const t=await res.text(); throw new Error(`HTTP ${res.status}: ${t}`); }
-  const data = await res.json();
-  tickets = Array.isArray(data) ? data : (data.tickets||[]);
-  ticketCounter = Array.isArray(data) ? tickets.length : (data.ticketCounter||tickets.length);
+  const id = await getDriveId();
+  return `https://graph.microsoft.com/v1.0/drives/${id}/root:/${FOLDER_PATH}/${FILE_NAME}:/content`;
 }
 
 async function ensureFolder() {
+  const id = await getDriveId();
   const parts = FOLDER_PATH.split('/');
   let currentPath = '';
   for (const part of parts) {
     currentPath = currentPath ? `${currentPath}/${part}` : part;
-    const res = await fetch(`${SITE_URL}/drive/root:/${currentPath}`, { headers: { Authorization: `Bearer ${token}` } });
-    if (res.status === 404) {
-      const parentPath = currentPath.includes('/') ? currentPath.substring(0, currentPath.lastIndexOf('/')) : '';
-      const createUrl = parentPath ? `${SITE_URL}/drive/root:/${parentPath}:/children` : `${SITE_URL}/drive/root/children`;
-      await fetch(createUrl, {
-        method:'POST',
-        headers:{ Authorization:`Bearer ${token}`,'Content-Type':'application/json' },
-        body:JSON.stringify({ name:part, folder:{}, "@microsoft.graph.conflictBehavior":"rename" })
-      });
+    const res = await fetch(`https://graph.microsoft.com/v1.0/drives/${id}/root:/${currentPath}`, { headers: { Authorization:`Bearer ${token}` } });
+    if (res.status===404) {
+      const parentPath = currentPath.includes('/') ? currentPath.substring(0,currentPath.lastIndexOf('/')) : '';
+      const createUrl = parentPath
+        ? `https://graph.microsoft.com/v1.0/drives/${id}/root:/${parentPath}:/children`
+        : `https://graph.microsoft.com/v1.0/drives/${id}/root/children`;
+      await fetch(createUrl,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({name:part,folder:{},"@microsoft.graph.conflictBehavior":"rename"})});
     }
   }
 }
 
-async function saveTickets() {
-  await ensureFolder();
+async function loadTickets() {
   const url = await getFileUrl();
-  const res = await fetch(url, {
-    method:'PUT',
-    headers:{ Authorization:`Bearer ${token}`,'Content-Type':'application/json' },
-    body:JSON.stringify({ tickets, ticketCounter }, null, 2)
-  });
-  if (!res.ok) { const t=await res.text(); throw new Error(`Save failed ${res.status}: ${t}`); }
+  const res = await fetch(url,{headers:{Authorization:`Bearer ${token}`}});
+  if(res.status===404){tickets=[];ticketCounter=0;return;}
+  if(!res.ok){const t=await res.text();throw new Error(`HTTP ${res.status}: ${t}`);}
+  const data=await res.json();
+  tickets=Array.isArray(data)?data:(data.tickets||[]);
+  ticketCounter=Array.isArray(data)?tickets.length:(data.ticketCounter||tickets.length);
 }
 
-function showApp(account) {
+async function saveTickets() {
+  await ensureFolder();
+  const url=await getFileUrl();
+  const res=await fetch(url,{method:'PUT',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({tickets,ticketCounter},null,2)});
+  if(!res.ok){const t=await res.text();throw new Error(`Save failed ${res.status}: ${t}`);}
+}
+
+async function initAuth() {
+  msalInstance=new msal.PublicClientApplication({auth:{clientId:CLIENT_ID,authority:`https://login.microsoftonline.com/${TENANT_ID}`,redirectUri:window.location.href.split('?')[0].split('#')[0]},cache:{cacheLocation:'sessionStorage'}});
+  await msalInstance.initialize();
+  const result=await msalInstance.handleRedirectPromise();
+  if(result){token=result.accessToken;showApp(result.account);return;}
+  const accounts=msalInstance.getAllAccounts();
+  if(accounts.length){try{const r=await msalInstance.acquireTokenSilent({scopes:SCOPES,account:accounts[0]});token=r.accessToken;showApp(accounts[0]);}catch(e){showLogin();}}
+  else showLogin();
+}
+
+function showLogin(){document.getElementById('login-screen').style.display='flex';document.getElementById('app-screen').style.display='none';}
+async function login(){await msalInstance.loginRedirect({scopes:SCOPES});}
+async function logout(){await msalInstance.logoutRedirect();}
+
+function showApp(account){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app-screen').style.display='block';
   document.getElementById('user-name').textContent=account.name||account.username;
   loadAndRender();
 }
 
-async function loadAndRender() {
+async function loadAndRender(){
   setStatus('loading','Loading tickets from SharePoint…');
-  try {
-    await loadTickets();
-    renderTable(); updateStats();
-    setStatus('ok',`Loaded ${tickets.length} ticket(s)`);
-    setTimeout(()=>setStatus('',''),3000);
-  } catch(e) { setStatus('err','Error: '+e.message); }
+  try{await loadTickets();renderTable();updateStats();setStatus('ok',`Loaded ${tickets.length} ticket(s)`);setTimeout(()=>setStatus('',''),3000);}
+  catch(e){setStatus('err','Error: '+e.message);}
 }
 
-function updateStats() {
-  document.getElementById('stat-open').textContent     = tickets.filter(t=>t.status==='Open').length;
-  document.getElementById('stat-progress').textContent = tickets.filter(t=>t.status==='In Progress').length;
-  document.getElementById('stat-closed').textContent   = tickets.filter(t=>t.status==='Closed').length;
-  document.getElementById('stat-critical').textContent = tickets.filter(t=>t.priority==='Critical').length;
-  document.getElementById('stat-total').textContent    = tickets.length;
+function updateStats(){
+  document.getElementById('stat-open').textContent=tickets.filter(t=>t.status==='Open').length;
+  document.getElementById('stat-progress').textContent=tickets.filter(t=>t.status==='In Progress').length;
+  document.getElementById('stat-closed').textContent=tickets.filter(t=>t.status==='Closed').length;
+  document.getElementById('stat-critical').textContent=tickets.filter(t=>t.priority==='Critical').length;
+  document.getElementById('stat-total').textContent=tickets.length;
 }
 
-function renderTable() {
+function renderTable(){
   const search=document.getElementById('search').value.toLowerCase();
-  const fStatus=document.getElementById('filter-status').value;
-  const fPriority=document.getElementById('filter-priority').value;
+  const fS=document.getElementById('filter-status').value;
+  const fP=document.getElementById('filter-priority').value;
   const filtered=tickets.filter(t=>{
-    if(fStatus && t.status!==fStatus) return false;
-    if(fPriority && t.priority!==fPriority) return false;
-    if(search){ const h=[t.id,t.subject,t.requester,t.name,t.category,t.assignedTo].join(' ').toLowerCase(); if(!h.includes(search)) return false; }
+    if(fS&&t.status!==fS)return false;
+    if(fP&&t.priority!==fP)return false;
+    if(search){const h=[t.id,t.subject,t.requester,t.name,t.category,t.assignedTo].join(' ').toLowerCase();if(!h.includes(search))return false;}
     return true;
   });
   const tbody=document.getElementById('ticket-table');
   const empty=document.getElementById('empty-state');
-  if(!filtered.length){ tbody.innerHTML=''; empty.style.display='block'; return; }
+  if(!filtered.length){tbody.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
   tbody.innerHTML=filtered.map(t=>`
     <tr onclick="openModal('${t.id}')">
@@ -296,8 +289,8 @@ function renderTable() {
     </tr>`).join('');
 }
 
-function openModal(id) {
-  const t=tickets.find(t=>t.id===id); if(!t) return;
+function openModal(id){
+  const t=tickets.find(t=>t.id===id);if(!t)return;
   editingId=id;
   document.getElementById('modal-title').textContent=`${t.id} — ${t.subject||'Ticket'}`;
   document.getElementById('m-status').value=t.status||'Open';
@@ -310,37 +303,30 @@ function openModal(id) {
   document.getElementById('modal').classList.add('open');
 }
 
-function closeModal(){ document.getElementById('modal').classList.remove('open'); editingId=null; }
+function closeModal(){document.getElementById('modal').classList.remove('open');editingId=null;}
 
-async function saveTicket() {
-  const idx=tickets.findIndex(t=>t.id===editingId); if(idx===-1) return;
-  const t=tickets[idx];
-  const oldStatus=t.status;
-  const note=document.getElementById('m-note').value.trim();
+async function saveTicket(){
+  const idx=tickets.findIndex(t=>t.id===editingId);if(idx===-1)return;
+  const t=tickets[idx],oldStatus=t.status,note=document.getElementById('m-note').value.trim();
   t.status=document.getElementById('m-status').value;
   t.priority=document.getElementById('m-priority').value;
   t.assignedTo=document.getElementById('m-assigned').value.trim();
   t.updatedAt=new Date().toISOString();
-  if(!t.activity) t.activity=[];
-  if(t.status!==oldStatus) t.activity.push(`[${new Date().toLocaleString()}] Status → ${t.status}`);
-  if(note) t.activity.push(`[${new Date().toLocaleString()}] Note: ${note}`);
+  if(!t.activity)t.activity=[];
+  if(t.status!==oldStatus)t.activity.push(`[${new Date().toLocaleString()}] Status → ${t.status}`);
+  if(note)t.activity.push(`[${new Date().toLocaleString()}] Note: ${note}`);
   closeModal();
   setStatus('loading','Saving…');
-  try{
-    await saveTickets(); renderTable(); updateStats();
-    setStatus('ok','Ticket saved'); setTimeout(()=>setStatus('',''),3000);
-  }catch(e){setStatus('err','Save failed: '+e.message);}
+  try{await saveTickets();renderTable();updateStats();setStatus('ok','Ticket saved');setTimeout(()=>setStatus('',''),3000);}
+  catch(e){setStatus('err','Save failed: '+e.message);}
 }
 
 function setStatus(type,msg){
   const el=document.getElementById('status-bar');
-  el.textContent=msg; el.className='status-bar'+(type?' '+type:'');
+  el.textContent=msg;el.className='status-bar'+(type?' '+type:'');
 }
 
-document.getElementById('modal').addEventListener('click',e=>{
-  if(e.target===document.getElementById('modal')) closeModal();
-});
-
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal();});
 initAuth();
 </script>
 </body>

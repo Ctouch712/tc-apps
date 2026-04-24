@@ -160,17 +160,44 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
 const CLIENT_ID = 'd422751a-06b5-4c2b-aaf5-26da4c31ca65';
 const TENANT_ID = '33f05b13-a7a5-4e78-8e18-d69170b7da13';
 const SCOPES = ['Sites.ReadWrite.All', 'User.Read'];
-const SITE_URL = 'https://graph.microsoft.com/v1.0/sites/netorgft14077536.sharepoint.com:/sites/TopCoatMain:';
+const SITE_HOSTNAME = 'netorgft14077536.sharepoint.com';
+const SITE_PATH = '/sites/TopCoatMain';
 const FOLDER_PATH = 'Leadership Team/IT/IT Tickets';
 const FILE_NAME = 'it_tickets_data.json';
 
-let msalInstance, token, tickets = [], ticketCounter = 0, _fileUrl = null;
+let msalInstance, token, tickets = [], ticketCounter = 0, _driveId = null;
+
+async function getDriveId() {
+  if (_driveId) return _driveId;
+  // Get the site's default document library drive ID
+  const siteRes = await fetch(
+    `https://graph.microsoft.com/v1.0/sites/${SITE_HOSTNAME}:${SITE_PATH}:/drives`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!siteRes.ok) throw new Error(`Could not get site drives: HTTP ${siteRes.status}`);
+  const data = await siteRes.json();
+  // Find the Documents library (documentLibrary type, usually named "Documents")
+  const docLib = data.value.find(d => d.driveType === 'documentLibrary' && (d.name === 'Documents' || d.name === 'Shared Documents')) || data.value[0];
+  if (!docLib) throw new Error('Could not find Documents library');
+  _driveId = docLib.id;
+  return _driveId;
+}
 
 async function getFileUrl() {
-  if (_fileUrl) return _fileUrl;
-  // Try the default drive (Documents library)
-  _fileUrl = `${SITE_URL}/drive/root:/${FOLDER_PATH}/${FILE_NAME}:/content`;
-  return _fileUrl;
+  const driveId = await getDriveId();
+  return `https://graph.microsoft.com/v1.0/drives/${driveId}/root:/${FOLDER_PATH}/${FILE_NAME}:/content`;
+}
+
+async function getFolderUrl(path) {
+  const driveId = await getDriveId();
+  return `https://graph.microsoft.com/v1.0/drives/${driveId}/root:/${path}`;
+}
+
+async function getFolderChildrenUrl(path) {
+  const driveId = await getDriveId();
+  return path
+    ? `https://graph.microsoft.com/v1.0/drives/${driveId}/root:/${path}:/children`
+    : `https://graph.microsoft.com/v1.0/drives/${driveId}/root/children`;
 }
 
 async function initAuth() {
@@ -203,141 +230,112 @@ async function logout() { await msalInstance.logoutRedirect(); }
 
 async function loadTickets() {
   const url = await getFileUrl();
-  try {
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    if (res.status === 404) { tickets = []; ticketCounter = 0; return; }
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(`HTTP ${res.status}: ${txt}`);
-    }
-    const data = await res.json();
-    tickets = Array.isArray(data) ? data : (data.tickets || []);
-    ticketCounter = Array.isArray(data) ? tickets.length : (data.ticketCounter || tickets.length);
-  } catch(e) {
-    if (e.message.includes('404') || e.message.includes('itemNotFound')) { tickets = []; ticketCounter = 0; }
-    else throw e;
-  }
-}
-
-async function saveTickets() {
-  // First ensure the folder exists by creating it if needed
-  await ensureFolder();
-  const url = await getFileUrl();
-  const content = JSON.stringify({ tickets, ticketCounter }, null, 2);
-  const res = await fetch(url, {
-    method: 'PUT',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: content
-  });
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Save failed HTTP ${res.status}: ${txt}`);
-  }
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (res.status === 404) { tickets=[]; ticketCounter=0; return; }
+  if (!res.ok) { const t=await res.text(); throw new Error(`HTTP ${res.status}: ${t}`); }
+  const data = await res.json();
+  tickets = Array.isArray(data) ? data : (data.tickets||[]);
+  ticketCounter = Array.isArray(data) ? tickets.length : (data.ticketCounter||tickets.length);
 }
 
 async function ensureFolder() {
-  // Create folders one level at a time if they don't exist
   const parts = FOLDER_PATH.split('/');
   let currentPath = '';
   for (const part of parts) {
     currentPath = currentPath ? `${currentPath}/${part}` : part;
-    const checkUrl = `${SITE_URL}/drive/root:/${currentPath}`;
+    const checkUrl = await getFolderUrl(currentPath);
     const res = await fetch(checkUrl, { headers: { Authorization: `Bearer ${token}` } });
     if (res.status === 404) {
-      // Create the folder
       const parentPath = currentPath.includes('/') ? currentPath.substring(0, currentPath.lastIndexOf('/')) : '';
-      const folderName = part;
-      const createUrl = parentPath
-        ? `${SITE_URL}/drive/root:/${parentPath}:/children`
-        : `${SITE_URL}/drive/root/children`;
+      const createUrl = await getFolderChildrenUrl(parentPath);
       await fetch(createUrl, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: folderName, folder: {}, "@microsoft.graph.conflictBehavior": "rename" })
+        body: JSON.stringify({ name: part, folder: {}, "@microsoft.graph.conflictBehavior": "rename" })
       });
     }
   }
 }
 
+async function saveTickets() {
+  await ensureFolder();
+  const url = await getFileUrl();
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tickets, ticketCounter }, null, 2)
+  });
+  if (!res.ok) { const t=await res.text(); throw new Error(`Save failed ${res.status}: ${t}`); }
+}
 
 let selPriority = null;
 
 function showApp(account) {
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app-screen').style.display = 'block';
-  document.getElementById('user-name').textContent = account.name || account.username;
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app-screen').style.display='block';
+  document.getElementById('user-name').textContent=account.name||account.username;
 }
-
-function selP(p, el) {
-  selPriority = p;
-  document.querySelectorAll('.priority-opt').forEach(o => o.className = 'priority-opt');
-  el.classList.add('active-' + p);
+function selP(p,el) {
+  selPriority=p;
+  document.querySelectorAll('.priority-opt').forEach(o=>o.className='priority-opt');
+  el.classList.add('active-'+p);
   document.getElementById('field-priority').classList.remove('has-error');
 }
-
 function updateChar() {
-  document.getElementById('char-count').textContent = document.getElementById('f-description').value.length;
+  document.getElementById('char-count').textContent=document.getElementById('f-description').value.length;
 }
-
 function validate() {
-  let ok = true;
-  if (!selPriority) { document.getElementById('field-priority').classList.add('has-error'); ok = false; }
+  let ok=true;
+  if(!selPriority){document.getElementById('field-priority').classList.add('has-error');ok=false;}
   else document.getElementById('field-priority').classList.remove('has-error');
-  [['field-name','f-name'],['field-email','f-email'],['field-category','f-category'],['field-subject','f-subject']].forEach(([fid,iid]) => {
-    const val = document.getElementById(iid).value.trim();
-    const invalid = !val || (iid==='f-email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val));
-    document.getElementById(fid).classList.toggle('has-error', invalid);
-    if (invalid) ok = false;
+  [['field-name','f-name'],['field-email','f-email'],['field-category','f-category'],['field-subject','f-subject']].forEach(([fid,iid])=>{
+    const val=document.getElementById(iid).value.trim();
+    const invalid=!val||(iid==='f-email'&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val));
+    document.getElementById(fid).classList.toggle('has-error',invalid);
+    if(invalid) ok=false;
   });
   return ok;
 }
-
 async function submitTicket() {
-  if (!validate()) return;
-  const btn = document.getElementById('submit-btn');
-  btn.disabled = true; btn.textContent = 'Submitting…';
+  if(!validate()) return;
+  const btn=document.getElementById('submit-btn');
+  btn.disabled=true; btn.textContent='Submitting…';
   showStatusMsg('','');
   try {
     await loadTickets();
     ticketCounter++;
-    const ref = 'INC-' + String(ticketCounter).padStart(4,'0');
-    const ticket = {
-      id: ref,
-      priority: selPriority.charAt(0).toUpperCase() + selPriority.slice(1),
-      name: document.getElementById('f-name').value.trim(),
-      requester: document.getElementById('f-name').value.trim(),
-      email: document.getElementById('f-email').value.trim(),
-      department: document.getElementById('f-dept').value.trim(),
-      category: document.getElementById('f-category').value,
-      subject: document.getElementById('f-subject').value.trim(),
-      description: document.getElementById('f-description').value.trim(),
-      device: document.getElementById('f-device').value.trim(),
-      status: 'Open',
-      assignedTo: '',
-      activity: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    tickets.push(ticket);
+    const ref='INC-'+String(ticketCounter).padStart(4,'0');
+    tickets.push({
+      id:ref,
+      priority:selPriority.charAt(0).toUpperCase()+selPriority.slice(1),
+      name:document.getElementById('f-name').value.trim(),
+      requester:document.getElementById('f-name').value.trim(),
+      email:document.getElementById('f-email').value.trim(),
+      department:document.getElementById('f-dept').value.trim(),
+      category:document.getElementById('f-category').value,
+      subject:document.getElementById('f-subject').value.trim(),
+      description:document.getElementById('f-description').value.trim(),
+      device:document.getElementById('f-device').value.trim(),
+      status:'Open',assignedTo:'',activity:[],
+      createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()
+    });
     await saveTickets();
-    document.getElementById('ref-number').textContent = ref;
-    document.getElementById('form-wrap').style.display = 'none';
-    document.getElementById('success-screen').style.display = 'block';
+    document.getElementById('ref-number').textContent=ref;
+    document.getElementById('form-wrap').style.display='none';
+    document.getElementById('success-screen').style.display='block';
   } catch(e) {
-    showStatusMsg('err','Failed to submit: ' + e.message);
-    btn.disabled = false; btn.textContent = 'Submit Ticket';
+    showStatusMsg('err','Failed to submit: '+e.message);
+    btn.disabled=false; btn.textContent='Submit Ticket';
   }
 }
-
-function showStatusMsg(type, msg) {
-  const el = document.getElementById('status-msg');
-  el.textContent = msg; el.className = 'status-msg' + (type ? ' '+type : '');
+function showStatusMsg(type,msg) {
+  const el=document.getElementById('status-msg');
+  el.textContent=msg; el.className='status-msg'+(type?' '+type:'');
 }
-
 function resetForm() {
-  selPriority = null;
-  document.querySelectorAll('.priority-opt').forEach(o => o.className = 'priority-opt');
-  ['f-name','f-email','f-dept','f-subject','f-description','f-device'].forEach(id => document.getElementById(id).value='');
+  selPriority=null;
+  document.querySelectorAll('.priority-opt').forEach(o=>o.className='priority-opt');
+  ['f-name','f-email','f-dept','f-subject','f-description','f-device'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-category').value='';
   document.getElementById('char-count').textContent='0';
   document.getElementById('success-screen').style.display='none';
@@ -345,7 +343,6 @@ function resetForm() {
   const btn=document.getElementById('submit-btn');
   btn.disabled=false; btn.textContent='Submit Ticket';
 }
-
 initAuth();
 </script>
 </body>
