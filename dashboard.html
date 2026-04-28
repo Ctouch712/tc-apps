@@ -289,11 +289,12 @@ function getDeviceIcon(device){
   if(d.includes('laptop')||d.includes('macbook')) return '💻';
   if(d.includes('desktop')||d.includes('computer')||d.includes('pc')) return '🖥️';
   if(d.includes('printer')||d.includes('scanner')) return '🖨️';
-  if(d.includes('phone')||d.includes('mobile')||d.includes('iphone')||d.includes('android')) return '📱';
+  if(d.includes('phone')||d.includes('mobile')||d.includes('iphone')||d.includes('android')||d.includes('cellular')) return '📱';
   if(d.includes('tablet')||d.includes('ipad')) return '📱';
-  if(d.includes('landline')||d.includes('voip')) return '☎️';
-  if(d.includes('mouse')||d.includes('keyboard')||d.includes('headset')||d.includes('peripheral')) return '🖱️';
-  if(d.includes('network')||d.includes('router')||d.includes('wifi')||d.includes('internet')) return '🌐';
+  if(d.includes('landline')||d.includes('voip')||d.includes('phone line')) return '☎️';
+  if(d.includes('mouse')||d.includes('keyboard')||d.includes('headset')||d.includes('peripheral')||d.includes('monitor')) return '🖱️';
+  if(d.includes('network')||d.includes('router')||d.includes('wifi')||d.includes('internet')||d.includes('vpn')) return '🌐';
+  if(d.includes('software')||d.includes('windows')||d.includes('mac')||d.includes('excel')||d.includes('word')||d.includes('outlook')||d.includes('office')||d.includes('email')||d.includes('application')||d.includes('app')||d.includes('license')) return '💾';
   return '⚙️';
 }
 
