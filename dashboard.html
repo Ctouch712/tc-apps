@@ -298,6 +298,19 @@ function getDeviceIcon(device){
   return '⚙️';
 }
 
+function getCategoryIcon(category){
+  if(!category) return '❓';
+  const c=category.toLowerCase();
+  if(c.includes('hardware')||c.includes('computer')||c.includes('laptop')||c.includes('printer')) return '🖥️';
+  if(c.includes('software')||c.includes('application')||c.includes('app')||c.includes('license')) return '💾';
+  if(c.includes('network')||c.includes('internet')||c.includes('wifi')||c.includes('vpn')) return '🌐';
+  if(c.includes('email')||c.includes('microsoft 365')||c.includes('outlook')) return '📧';
+  if(c.includes('phone')||c.includes('mobile')||c.includes('cellular')) return '📱';
+  if(c.includes('printer')||c.includes('scanner')) return '🖨️';
+  if(c.includes('account')||c.includes('password')||c.includes('login')) return '🔐';
+  return '⚙️';
+}
+
 function renderTable(){
   const search=document.getElementById('search').value.toLowerCase();
   const fS=document.getElementById('filter-status').value;
@@ -317,7 +330,7 @@ function renderTable(){
       <td><span style="font-family:var(--mono);font-size:12px">${t.id||'—'}</span></td>
       <td>${t.subject||t.description?.substring(0,60)||'—'}</td>
       <td>${t.requester||t.name||'—'}</td>
-      <td><span style="font-size:16px;margin-right:4px;">${getDeviceIcon(t.device)}</span>${t.category||'—'}</td>
+      <td><span style="font-size:16px;margin-right:4px;">${getCategoryIcon(t.category)}</span>${t.category||'—'}</td>
       <td><span class="badge p-${(t.priority||'').toLowerCase()}">${t.priority||'—'}</span></td>
       <td><span class="badge s-${(t.status||'open').toLowerCase().replace(' ','')}">${t.status||'Open'}</span></td>
       <td>${t.assignedTo||'—'}</td>
