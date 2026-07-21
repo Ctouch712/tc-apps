@@ -1,0 +1,2702 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Top Coat IT · Tickets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@1,500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
+<style>
+:root{
+  /* Dark (default) */
+  --bg:#0A1020;
+  --bg-2:#0E1526;
+  --panel:#131C33;
+  --panel-2:#182339;
+  --panel-hi:#1E2B47;
+  --line:#243354;
+  --line-soft:#1B2540;
+  --ink:#EAEEF7;
+  --ink-2:#B4BFD4;
+  --ink-3:#7E8BA6;
+  --ink-4:#54607B;
+  --brand:#3AA0FF;
+  --brand-2:#5DB4FF;
+  --brand-ink:#0A1020;
+  --accent:#8B5CF6;   /* violet secondary */
+  --ok:#3FDD8A;
+  --warn:#FFB547;
+  --danger:#FF5A6C;
+  --grid: rgba(58,160,255,0.06);
+  --shadow: 0 10px 30px rgba(0,0,0,.35), 0 2px 8px rgba(0,0,0,.25);
+  --shadow-sm: 0 4px 14px rgba(0,0,0,.25);
+  --radius:14px;
+  --radius-sm:10px;
+  --radius-xs:8px;
+  --font-sans:"IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --font-serif:"IBM Plex Serif", ui-serif, Georgia, serif;
+}
+[data-theme="light"]{
+  --bg:#F5F6FA;
+  --bg-2:#EDEFF5;
+  --panel:#FFFFFF;
+  --panel-2:#F7F8FC;
+  --panel-hi:#EEF2F9;
+  --line:#DBE0EC;
+  --line-soft:#E6EAF3;
+  --ink:#0C1327;
+  --ink-2:#3B4560;
+  --ink-3:#66738F;
+  --ink-4:#8B95AD;
+  --brand:#0C6BE0;
+  --brand-2:#1E7DEE;
+  --brand-ink:#FFFFFF;
+  --accent:#7A48F2;
+  --ok:#0FA968;
+  --warn:#D97706;
+  --danger:#DC2743;
+  --grid: rgba(12,107,224,0.05);
+  --shadow: 0 8px 24px rgba(15,25,55,.08), 0 2px 6px rgba(15,25,55,.05);
+  --shadow-sm: 0 3px 10px rgba(15,25,55,.06);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--font-sans);
+  font-size:14px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+  background-image:
+    radial-gradient(1200px 700px at 85% -10%, rgba(58,160,255,0.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 20%, rgba(139,92,246,0.08), transparent 60%),
+    linear-gradient(180deg, var(--bg-2), var(--bg) 400px);
+  background-attachment: fixed;
+}
+[data-theme="light"] body{
+  background-image:
+    radial-gradient(1200px 700px at 85% -10%, rgba(12,107,224,0.05), transparent 60%),
+    radial-gradient(900px 500px at -10% 20%, rgba(122,72,242,0.04), transparent 60%),
+    linear-gradient(180deg, var(--bg-2), var(--bg) 400px);
+}
+
+/* ─────── Top bar ─────── */
+.topbar{
+  position:sticky; top:0; z-index:50;
+  backdrop-filter:blur(14px) saturate(1.1);
+  -webkit-backdrop-filter:blur(14px) saturate(1.1);
+  background:color-mix(in oklab, var(--bg) 78%, transparent);
+  border-bottom:1px solid var(--line-soft);
+}
+.topbar-inner{
+  max-width:1440px; margin:0 auto;
+  padding:14px 28px;
+  display:flex; align-items:center; gap:16px;
+}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.logo-badge{
+  width:46px;height:46px;border-radius:50%;
+  background:#FFFFFF;
+  overflow:hidden;
+  box-shadow:0 0 0 1px var(--line), var(--shadow-sm);
+  flex:none;
+  display:block;
+}
+.logo-badge img.logo-img{
+  width:100%; height:100%;
+  display:block;
+  object-fit:cover;
+}
+.brand-text{display:flex;flex-direction:column;min-width:0}
+.brand-line-1{
+  font-size:11px; letter-spacing:0.16em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:500; font-family:var(--font-mono);
+}
+.brand-line-2{
+  font-size:16px; font-weight:600; color:var(--ink);
+  display:flex; align-items:center; gap:8px; line-height:1.15;
+}
+.brand-tag{
+  font-family:var(--font-mono); font-size:10px; padding:2px 6px;
+  border:1px solid var(--line); border-radius:5px; color:var(--ink-3);
+  font-weight:500;
+}
+
+.top-search{
+  flex:1; max-width:520px; margin:0 auto;
+  position:relative;
+}
+.top-search input{
+  width:100%; height:38px;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:0 14px 0 40px;
+  color:var(--ink);
+  font-family:var(--font-sans); font-size:13.5px;
+  transition:border-color .15s, background .15s, box-shadow .15s;
+}
+.top-search input::placeholder{color:var(--ink-4)}
+.top-search input:focus{
+  outline:none; border-color:var(--brand);
+  box-shadow:0 0 0 3px color-mix(in oklab, var(--brand) 22%, transparent);
+}
+.top-search .ico{
+  position:absolute; left:13px; top:50%; transform:translateY(-50%);
+  width:16px; height:16px; color:var(--ink-3); pointer-events:none;
+}
+.kbd{
+  position:absolute; right:10px; top:50%; transform:translateY(-50%);
+  display:flex; gap:3px; pointer-events:none;
+}
+.kbd span{
+  font-family:var(--font-mono); font-size:10.5px;
+  padding:2px 6px; border-radius:5px;
+  background:var(--panel-hi); color:var(--ink-3);
+  border:1px solid var(--line);
+  line-height:1;
+}
+
+.top-actions{display:flex;align-items:center;gap:8px;flex:none}
+
+/* ─────── Buttons ─────── */
+.btn{
+  display:inline-flex; align-items:center; gap:7px;
+  height:38px; padding:0 14px;
+  background:var(--panel); border:1px solid var(--line);
+  color:var(--ink);
+  font-family:inherit; font-size:13px; font-weight:500;
+  border-radius:10px; cursor:pointer;
+  transition:background .15s, border-color .15s, transform .05s;
+  white-space:nowrap;
+}
+.btn:hover{background:var(--panel-hi); border-color:color-mix(in oklab, var(--line) 60%, var(--brand))}
+.btn:active{transform:translateY(1px)}
+.btn.primary{
+  background:var(--brand); border-color:var(--brand); color:var(--brand-ink);
+  font-weight:600;
+}
+.btn.primary:hover{background:var(--brand-2); border-color:var(--brand-2)}
+.btn.ghost{background:transparent}
+.btn.icon-only{width:38px;padding:0;justify-content:center}
+.btn svg{width:15px;height:15px;flex:none}
+
+/* ─────── Layout ─────── */
+.wrap{max-width:1440px; margin:0 auto; padding:28px}
+.page-head{
+  display:flex; align-items:flex-end; justify-content:space-between; gap:16px;
+  margin-bottom:22px;
+}
+.page-title-block h1{
+  margin:0 0 4px 0; font-family:var(--font-sans);
+  font-size:26px; font-weight:600; letter-spacing:-0.01em;
+  color:var(--ink);
+}
+.page-title-block h1 em{
+  font-family:var(--font-serif); font-style:italic; font-weight:500;
+  color:var(--brand);
+}
+.page-sub{color:var(--ink-3); font-size:13px}
+
+/* ─────── Stat cards ─────── */
+.stats{
+  display:grid; grid-template-columns:repeat(6, minmax(0,1fr));
+  gap:14px; margin-bottom:22px;
+}
+.stat{
+  background:linear-gradient(180deg, var(--panel), var(--panel-2));
+  border:1px solid var(--line-soft);
+  border-radius:var(--radius);
+  padding:16px 18px;
+  position:relative; overflow:hidden;
+  transition:border-color .15s, transform .15s;
+  cursor:default;
+}
+.stat::before{
+  content:""; position:absolute; inset:0;
+  background-image:
+    linear-gradient(0deg, var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size:24px 24px;
+  opacity:0.5; pointer-events:none;
+  mask-image: linear-gradient(180deg, rgba(0,0,0,0.5), transparent);
+  -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.5), transparent);
+}
+.stat-label{
+  font-family:var(--font-mono); font-size:10.5px; font-weight:500;
+  letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-3);
+  display:flex; align-items:center; gap:6px;
+}
+.stat-dot{width:6px;height:6px;border-radius:50%;background:var(--brand)}
+.stat-value{
+  font-family:var(--font-sans); font-size:32px; font-weight:600;
+  letter-spacing:-0.02em; line-height:1.1; margin-top:8px;
+  font-variant-numeric: tabular-nums;
+  color:var(--ink);
+}
+.stat-value .unit{font-size:14px; color:var(--ink-3); font-weight:500; margin-left:4px}
+.stat-sub{
+  font-size:11.5px; color:var(--ink-3);
+  margin-top:6px; font-family:var(--font-mono);
+  display:flex; align-items:center; gap:6px;
+  position:relative;
+}
+.spark{
+  height:24px; margin-top:10px;
+  position:relative;
+}
+.spark svg{width:100%; height:100%; display:block}
+
+/* Yearly breakdown chart in Time Logged card */
+.yearly-chart{
+  margin-top:10px;
+  display:flex; align-items:flex-end; gap:6px;
+  height:34px;
+}
+.yearly-bar{
+  flex:1; min-width:0;
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  cursor:pointer;
+  transition:transform .1s;
+}
+.yearly-bar:hover{transform:translateY(-1px)}
+.yearly-bar .bar-fill{
+  width:100%;
+  background:color-mix(in oklab, var(--brand) 45%, var(--panel-hi));
+  border-radius:3px 3px 0 0;
+  min-height:2px;
+  transition:background .15s;
+}
+.yearly-bar .bar-label{
+  font-family:var(--font-mono); font-size:9.5px; font-weight:500;
+  color:var(--ink-4);
+  letter-spacing:0.05em;
+  line-height:1;
+}
+.yearly-bar.on .bar-fill{background:var(--brand)}
+.yearly-bar.on .bar-label{color:var(--ink-2)}
+.yearly-bar .bar-value{
+  position:absolute; margin-top:-14px;
+  font-family:var(--font-mono); font-size:9px; color:var(--ink-3);
+  opacity:0; pointer-events:none; transition:opacity .1s;
+  background:var(--panel); padding:1px 4px; border-radius:3px;
+  border:1px solid var(--line);
+  white-space:nowrap; z-index:2;
+}
+.yearly-bar:hover .bar-value{opacity:1}
+
+/* ─────── Charts row ─────── */
+.charts{
+  display:grid; grid-template-columns:repeat(3, minmax(0,1fr));
+  gap:14px; margin-bottom:22px;
+}
+.chart-card{
+  background:linear-gradient(180deg, var(--panel), var(--panel-2));
+  border:1px solid var(--line-soft);
+  border-radius:var(--radius);
+  padding:16px 18px 18px;
+  display:flex; flex-direction:column;
+  min-height:220px;
+  position:relative;
+}
+.chart-title{
+  margin:0 0 14px 0;
+  font-family:var(--font-mono);
+  font-size:10.5px; font-weight:500;
+  letter-spacing:0.12em; text-transform:uppercase;
+  color:var(--ink-3);
+  display:flex; align-items:center; gap:6px;
+}
+.chart-title .dot{width:6px;height:6px;border-radius:50%;background:var(--brand)}
+.chart-body{display:flex; flex:1; align-items:center; gap:18px; min-height:0}
+.chart-empty{
+  flex:1; display:grid; place-items:center;
+  color:var(--ink-4); font-size:12px; font-style:italic;
+}
+
+/* Donut */
+.donut-wrap{
+  position:relative; flex:none; width:140px; height:140px;
+}
+.donut-wrap svg{width:100%; height:100%; display:block; overflow:visible}
+.donut-center{
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  pointer-events:none;
+}
+.donut-center .n{
+  font-family:var(--font-sans); font-size:26px; font-weight:600;
+  color:var(--ink); line-height:1;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:-0.02em;
+}
+.donut-center .lbl{
+  font-family:var(--font-mono); font-size:9.5px; font-weight:500;
+  letter-spacing:0.15em; text-transform:uppercase;
+  color:var(--ink-3); margin-top:5px;
+}
+.donut-seg{transition:opacity .15s}
+.donut-seg:hover{opacity:0.85}
+
+.legend{display:flex; flex-direction:column; gap:9px; flex:1; min-width:0}
+.legend-item{
+  display:flex; align-items:center; gap:9px;
+  font-size:12.5px;
+}
+.legend-swatch{
+  width:10px; height:10px; border-radius:3px; flex:none;
+  box-shadow:0 0 0 1px color-mix(in oklab, currentColor 25%, transparent) inset;
+}
+.legend-label{
+  color:var(--ink-2); flex:1;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.legend-count{
+  font-family:var(--font-mono); font-size:12px; color:var(--ink);
+  font-variant-numeric:tabular-nums; font-weight:500;
+}
+.legend-pct{
+  font-family:var(--font-mono); font-size:10.5px; color:var(--ink-4);
+  font-variant-numeric:tabular-nums;
+  min-width:36px; text-align:right;
+}
+
+/* Horizontal bars */
+.h-bars{display:flex; flex-direction:column; gap:14px; flex:1; width:100%}
+.h-bar-head{
+  display:flex; justify-content:space-between; align-items:baseline;
+  margin-bottom:6px;
+}
+.h-bar-label{color:var(--ink-2); font-size:12.5px}
+.h-bar-count{
+  font-family:var(--font-mono); font-size:12px; color:var(--ink);
+  font-variant-numeric:tabular-nums; font-weight:500;
+}
+.h-bar-track{
+  height:6px; background:var(--panel-hi); border-radius:4px; overflow:hidden;
+}
+.h-bar-fill{
+  height:100%; border-radius:4px;
+  transition:width .35s cubic-bezier(.2,.9,.3,1);
+  min-width:0;
+}
+
+@media (max-width: 1100px){ .charts{grid-template-columns:1fr 1fr} }
+@media (max-width: 780px){ .charts{grid-template-columns:1fr} }
+
+/* Weekly mode toggle inside the stat card */
+.weekly-modes{
+  display:inline-flex; gap:1px;
+  background:var(--panel-hi); border-radius:6px; padding:2px;
+  border:1px solid var(--line-soft);
+  margin-left:auto;
+  flex:none;
+}
+.wk-mode{
+  font-family:var(--font-mono); font-size:9.5px; font-weight:600;
+  padding:2px 6px; border:none; background:transparent;
+  color:var(--ink-3); cursor:pointer; border-radius:4px;
+  letter-spacing:0.06em; text-transform:uppercase;
+  line-height:1.2;
+  transition:background .12s, color .12s;
+}
+.wk-mode:hover{ color:var(--ink) }
+.wk-mode.on{ background:var(--panel); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,0.15) }
+
+/* ─────── Sync status indicator ─────── */
+.sync-status{
+  display:inline-flex; align-items:center; gap:8px;
+  height:38px; padding:0 12px 0 14px;
+  background:var(--panel); border:1px solid var(--line);
+  border-radius:10px; font-size:12px; color:var(--ink-2);
+  font-family:var(--font-mono); letter-spacing:0.02em;
+  transition:border-color .2s, color .2s;
+  cursor:default;
+  white-space:nowrap;
+}
+.sync-status .sync-dot{
+  width:8px; height:8px; border-radius:50%;
+  background:var(--ink-4);
+  flex:none;
+  transition:background .2s, box-shadow .2s;
+}
+.sync-status[data-s="ok"]      .sync-dot{ background:var(--ok);     box-shadow:0 0 0 3px color-mix(in oklab, var(--ok) 20%, transparent) }
+.sync-status[data-s="loading"] .sync-dot{ background:var(--brand);  animation:sync-pulse 1.4s ease-in-out infinite }
+.sync-status[data-s="saving"]  .sync-dot{ background:var(--brand);  animation:sync-pulse 1.4s ease-in-out infinite }
+.sync-status[data-s="dirty"]   .sync-dot{ background:var(--warn) }
+.sync-status[data-s="err"]     .sync-dot{ background:var(--danger); box-shadow:0 0 0 3px color-mix(in oklab, var(--danger) 20%, transparent) }
+.sync-status[data-s="err"]{ border-color:color-mix(in oklab, var(--danger) 40%, var(--line)); color:var(--danger) }
+.sync-status[data-s="offline"] .sync-dot{ background:var(--ink-4) }
+.sync-status[data-s="offline"]{ color:var(--ink-3); cursor:pointer }
+.sync-status[data-s="offline"]:hover{ border-color:var(--brand); color:var(--ink) }
+@keyframes sync-pulse{ 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* ─────── Sign-in overlay ─────── */
+.signin-overlay{
+  position:fixed; inset:0; z-index:300;
+  background:var(--bg);
+  display:none; align-items:center; justify-content:center;
+  padding:24px;
+  background-image:
+    radial-gradient(1200px 700px at 85% -10%, rgba(58,160,255,0.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 20%, rgba(139,92,246,0.08), transparent 60%),
+    linear-gradient(180deg, var(--bg-2), var(--bg) 400px);
+}
+.signin-overlay.open{ display:flex }
+.signin-card{
+  background:var(--panel);
+  border:1px solid var(--line-soft);
+  border-radius:18px;
+  padding:36px 40px 32px;
+  max-width:440px; width:100%;
+  text-align:center;
+  box-shadow:var(--shadow);
+  position:relative;
+  overflow:hidden;
+}
+.signin-card::before{
+  content:""; position:absolute; inset:0;
+  background-image:
+    linear-gradient(0deg, var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size:24px 24px; opacity:0.5; pointer-events:none;
+  mask-image: linear-gradient(180deg, rgba(0,0,0,0.6), transparent 55%);
+  -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.6), transparent 55%);
+}
+.signin-card > *{ position:relative; z-index:1 }
+.signin-logo{
+  width:72px; height:72px; margin:0 auto 20px;
+  border-radius:50%; background:#FFFFFF;
+  overflow:hidden;
+  box-shadow:0 0 0 1px var(--line), var(--shadow-sm);
+}
+.signin-logo img{ width:100%; height:100%; display:block; object-fit:cover }
+.signin-eyebrow{
+  font-family:var(--font-mono); font-size:11px; font-weight:500;
+  letter-spacing:0.18em; text-transform:uppercase; color:var(--ink-3);
+  margin-bottom:8px;
+}
+.signin-title{
+  font-family:var(--font-sans); font-size:22px; font-weight:600;
+  letter-spacing:-0.01em; color:var(--ink); margin:0 0 8px 0;
+}
+.signin-title em{ font-family:var(--font-serif); font-style:italic; color:var(--brand); font-weight:500 }
+.signin-sub{
+  color:var(--ink-3); font-size:13.5px; line-height:1.55; margin:0 0 24px 0;
+}
+.signin-btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:10px;
+  height:44px; padding:0 18px;
+  background:#2F2F2F; color:#fff; border:none; border-radius:10px;
+  font-family:inherit; font-size:14px; font-weight:500; cursor:pointer;
+  transition:background .15s, opacity .15s;
+  width:100%;
+}
+.signin-btn:hover{ background:#1a1a1a }
+.signin-btn:disabled{ opacity:0.6; cursor:wait }
+.signin-btn svg{ width:18px; height:18px; flex:none }
+.signin-alt{
+  margin-top:14px; font-size:12.5px; color:var(--ink-3);
+}
+.signin-alt a{ color:var(--brand); text-decoration:none; cursor:pointer }
+.signin-alt a:hover{ text-decoration:underline }
+.signin-error{
+  margin-top:16px; padding:10px 14px;
+  background:color-mix(in oklab, var(--danger) 12%, transparent);
+  border:1px solid color-mix(in oklab, var(--danger) 30%, transparent);
+  border-radius:9px;
+  color:var(--danger); font-size:12.5px;
+  display:none; text-align:left;
+}
+.signin-error.show{ display:block }
+.signin-user{
+  margin-top:16px; font-size:11.5px; color:var(--ink-4);
+  font-family:var(--font-mono);
+}
+.signin-user span{ color:var(--ink-3) }
+
+@media (max-width: 780px){
+  .sync-status{ display:none }
+}
+
+/* priority accent dots */
+.stat.c-crit .stat-dot{background:var(--danger)}
+.stat.c-open .stat-dot{background:var(--warn)}
+.stat.c-prog .stat-dot{background:var(--brand)}
+.stat.c-done .stat-dot{background:var(--ok)}
+
+/* ─────── Toolbar ─────── */
+.toolbar{
+  background:var(--panel);
+  border:1px solid var(--line-soft);
+  border-radius:var(--radius);
+  padding:12px 14px;
+  margin-bottom:16px;
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  box-shadow:var(--shadow-sm);
+}
+.filter-group{display:flex; align-items:center; gap:6px}
+.filter-label{
+  font-family:var(--font-mono); font-size:10.5px; font-weight:500;
+  letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-3);
+  margin-right:2px;
+}
+.pill{
+  display:inline-flex; align-items:center; gap:6px;
+  height:30px; padding:0 12px;
+  background:var(--panel-2); border:1px solid var(--line);
+  color:var(--ink-2);
+  border-radius:8px; cursor:pointer; font-size:12.5px; font-weight:500;
+  transition:all .15s;
+  font-family:inherit;
+}
+.pill:hover{background:var(--panel-hi); color:var(--ink)}
+.pill.active{
+  background:color-mix(in oklab, var(--brand) 18%, var(--panel));
+  border-color:color-mix(in oklab, var(--brand) 60%, transparent);
+  color:var(--ink);
+}
+.pill .count{
+  font-family:var(--font-mono); font-size:10.5px;
+  padding:1px 6px; border-radius:5px;
+  background:var(--panel-hi); color:var(--ink-3);
+  font-weight:500; margin-left:2px;
+}
+.pill.active .count{
+  background:color-mix(in oklab, var(--brand) 30%, transparent);
+  color:var(--ink);
+}
+.tb-spacer{flex:1}
+.view-toggle{display:flex; background:var(--panel-2); border:1px solid var(--line); border-radius:9px; padding:3px}
+.view-toggle button{
+  height:26px; padding:0 12px;
+  background:transparent; border:none; color:var(--ink-3);
+  font-family:inherit; font-size:12px; font-weight:500;
+  border-radius:6px; cursor:pointer;
+  display:inline-flex; align-items:center; gap:6px;
+}
+.view-toggle button:hover{color:var(--ink)}
+.view-toggle button.on{background:var(--panel); color:var(--ink); box-shadow:var(--shadow-sm)}
+.view-toggle svg{width:13px;height:13px}
+
+/* ─────── Table view ─────── */
+.table-wrap{
+  background:var(--panel);
+  border:1px solid var(--line-soft);
+  border-radius:var(--radius);
+  overflow:hidden;
+  box-shadow:var(--shadow-sm);
+}
+table.tickets{
+  width:100%; border-collapse:collapse;
+  font-size:13px;
+}
+table.tickets thead th{
+  text-align:left; padding:11px 14px;
+  font-family:var(--font-mono); font-size:10.5px; font-weight:500;
+  letter-spacing:0.1em; text-transform:uppercase;
+  color:var(--ink-3);
+  border-bottom:1px solid var(--line-soft);
+  background:var(--panel-2);
+  cursor:pointer; user-select:none; white-space:nowrap;
+}
+table.tickets thead th .sort-arrow{
+  display:inline-block; margin-left:4px; opacity:0.4;
+  font-family:var(--font-mono); font-size:10px;
+}
+table.tickets thead th.sorted .sort-arrow{opacity:1; color:var(--brand)}
+table.tickets tbody tr{
+  border-bottom:1px solid var(--line-soft);
+  transition:background .12s;
+  cursor:pointer;
+}
+table.tickets tbody tr:hover{background:var(--panel-2)}
+table.tickets tbody tr:last-child{border-bottom:none}
+table.tickets td{padding:12px 14px; vertical-align:middle}
+td.c-id{
+  font-family:var(--font-mono); font-size:12px; color:var(--ink-2); font-weight:500;
+  white-space:nowrap;
+  position:relative; padding-left:22px;
+}
+td.c-id::before{
+  content:""; position:absolute; left:8px; top:8px; bottom:8px; width:3px;
+  border-radius:2px; background:var(--ink-4);
+}
+td.c-id.p-critical::before{background:var(--danger)}
+td.c-id.p-high::before{background:var(--warn)}
+td.c-id.p-medium::before{background:var(--brand)}
+td.c-id.p-low::before{background:var(--ok)}
+td.c-desc{
+  color:var(--ink); max-width:0; width:100%;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+td.c-desc .desc-inner{display:flex; flex-direction:column; gap:2px}
+td.c-desc .desc-1{color:var(--ink); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+td.c-desc .desc-2{color:var(--ink-3); font-size:11.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+td.c-date{font-family:var(--font-mono); color:var(--ink-2); font-size:12px; white-space:nowrap}
+td.c-owner{white-space:nowrap}
+td.c-time{font-family:var(--font-mono); color:var(--ink-2); text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap}
+
+/* Chips */
+.chip{
+  display:inline-flex; align-items:center; gap:5px;
+  height:22px; padding:0 8px;
+  font-size:11px; font-weight:500;
+  border-radius:6px;
+  font-family:var(--font-mono);
+  letter-spacing:0.02em;
+  white-space:nowrap;
+}
+.chip.s-open{background:color-mix(in oklab, var(--warn) 15%, transparent); color:var(--warn); border:1px solid color-mix(in oklab, var(--warn) 30%, transparent)}
+.chip.s-progress{background:color-mix(in oklab, var(--brand) 15%, transparent); color:var(--brand); border:1px solid color-mix(in oklab, var(--brand) 30%, transparent)}
+.chip.s-closed{background:color-mix(in oklab, var(--ok) 12%, transparent); color:var(--ok); border:1px solid color-mix(in oklab, var(--ok) 25%, transparent)}
+.chip.s-blocked{background:color-mix(in oklab, var(--danger) 15%, transparent); color:var(--danger); border:1px solid color-mix(in oklab, var(--danger) 30%, transparent)}
+
+.chip.p-critical{background:color-mix(in oklab, var(--danger) 15%, transparent); color:var(--danger); border:1px solid color-mix(in oklab, var(--danger) 30%, transparent)}
+.chip.p-high{background:color-mix(in oklab, var(--warn) 15%, transparent); color:var(--warn); border:1px solid color-mix(in oklab, var(--warn) 30%, transparent)}
+.chip.p-medium{background:color-mix(in oklab, var(--brand) 12%, transparent); color:var(--brand); border:1px solid color-mix(in oklab, var(--brand) 28%, transparent)}
+.chip.p-low{background:color-mix(in oklab, var(--ok) 12%, transparent); color:var(--ok); border:1px solid color-mix(in oklab, var(--ok) 25%, transparent)}
+
+.owner-chip{
+  display:inline-flex; align-items:center; gap:7px;
+  font-size:12.5px; color:var(--ink-2);
+}
+.avatar{
+  width:24px; height:24px; border-radius:50%;
+  display:grid; place-items:center;
+  font-family:var(--font-mono); font-size:10.5px; font-weight:600;
+  color:#fff; flex:none;
+  letter-spacing:-0.02em;
+}
+
+/* ─────── Kanban view ─────── */
+.kanban{
+  display:grid; grid-template-columns:repeat(4, minmax(260px, 1fr));
+  gap:14px; align-items:flex-start;
+}
+.kanban-col{
+  background:var(--panel);
+  border:1px solid var(--line-soft);
+  border-radius:var(--radius);
+  overflow:hidden;
+  box-shadow:var(--shadow-sm);
+}
+.kanban-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 14px;
+  border-bottom:1px solid var(--line-soft);
+  background:var(--panel-2);
+}
+.kanban-head-title{
+  display:flex; align-items:center; gap:8px;
+  font-family:var(--font-mono); font-size:11px; font-weight:600;
+  letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-2);
+}
+.kanban-head-title .dot{width:8px; height:8px; border-radius:50%}
+.kanban-head-count{
+  font-family:var(--font-mono); font-size:11px; font-weight:500;
+  padding:2px 8px; border-radius:6px;
+  background:var(--panel-hi); color:var(--ink-3);
+}
+.kanban-col.open .dot{background:var(--warn)}
+.kanban-col.progress .dot{background:var(--brand)}
+.kanban-col.blocked .dot{background:var(--danger)}
+.kanban-col.closed .dot{background:var(--ok)}
+.kanban-list{padding:10px; max-height:70vh; overflow-y:auto; display:flex; flex-direction:column; gap:8px}
+.kanban-list::-webkit-scrollbar{width:8px}
+.kanban-list::-webkit-scrollbar-thumb{background:var(--line); border-radius:4px}
+.kanban-list::-webkit-scrollbar-track{background:transparent}
+.k-card{
+  background:var(--panel-2);
+  border:1px solid var(--line-soft);
+  border-left:3px solid var(--ink-4);
+  border-radius:var(--radius-sm);
+  padding:11px 12px;
+  cursor:pointer;
+  transition:border-color .15s, background .15s, transform .06s;
+}
+.k-card:hover{background:var(--panel-hi); border-color:var(--line)}
+.k-card:active{transform:translateY(1px)}
+.k-card.p-critical{border-left-color:var(--danger)}
+.k-card.p-high{border-left-color:var(--warn)}
+.k-card.p-medium{border-left-color:var(--brand)}
+.k-card.p-low{border-left-color:var(--ok)}
+.k-card-head{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:8px; margin-bottom:6px;
+}
+.k-id{font-family:var(--font-mono); font-size:11px; color:var(--ink-3); font-weight:500}
+.k-desc{
+  color:var(--ink); font-size:13px; line-height:1.35;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+.k-foot{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-top:9px; gap:8px;
+}
+.k-meta{display:flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:11px; color:var(--ink-3)}
+.k-empty{
+  padding:24px 12px; text-align:center; color:var(--ink-4);
+  font-size:12.5px; font-style:italic;
+}
+
+/* ─────── Empty state ─────── */
+.empty{
+  padding:60px 24px; text-align:center;
+  color:var(--ink-3);
+}
+.empty h3{margin:8px 0 4px 0; color:var(--ink); font-weight:600; font-size:15px}
+.empty p{margin:0; font-size:13px}
+.empty svg{width:40px; height:40px; color:var(--ink-4); margin-bottom:8px}
+
+/* ─────── Detail drawer ─────── */
+.drawer-scrim{
+  position:fixed; inset:0; z-index:80;
+  background:rgba(4,8,20,0.55);
+  backdrop-filter:blur(4px);
+  opacity:0; pointer-events:none;
+  transition:opacity .18s;
+}
+.drawer-scrim.open{opacity:1; pointer-events:auto}
+.drawer{
+  position:fixed; top:0; right:0; bottom:0;
+  width:min(560px, 100%);
+  background:var(--bg-2);
+  border-left:1px solid var(--line);
+  z-index:90;
+  transform:translateX(100%);
+  transition:transform .22s cubic-bezier(.2,.9,.3,1);
+  display:flex; flex-direction:column;
+  box-shadow:-24px 0 60px rgba(0,0,0,0.4);
+}
+.drawer.open{transform:translateX(0)}
+.drawer-head{
+  padding:16px 20px;
+  border-bottom:1px solid var(--line-soft);
+  display:flex; align-items:center; gap:12px;
+  background:var(--panel);
+}
+.drawer-head .close-btn{
+  width:32px;height:32px;
+  background:transparent; border:1px solid var(--line);
+  border-radius:8px; cursor:pointer;
+  display:grid;place-items:center; color:var(--ink-2);
+}
+.drawer-head .close-btn:hover{background:var(--panel-hi); color:var(--ink)}
+.drawer-head-title{
+  flex:1; font-family:var(--font-mono); font-size:13px;
+  color:var(--ink); font-weight:600;
+}
+.drawer-body{
+  flex:1; overflow-y:auto;
+  padding:20px;
+}
+.drawer-body::-webkit-scrollbar{width:8px}
+.drawer-body::-webkit-scrollbar-thumb{background:var(--line); border-radius:4px}
+
+.field{margin-bottom:16px}
+.field label{
+  display:block;
+  font-family:var(--font-mono); font-size:10.5px; font-weight:500;
+  letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-3);
+  margin-bottom:6px;
+}
+.field input, .field select, .field textarea{
+  width:100%;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:9px;
+  padding:10px 12px;
+  color:var(--ink);
+  font-family:inherit; font-size:13.5px;
+  transition:border-color .15s, box-shadow .15s;
+}
+.field textarea{resize:vertical; min-height:70px; line-height:1.5; font-family:inherit}
+.field input:focus, .field select:focus, .field textarea:focus{
+  outline:none; border-color:var(--brand);
+  box-shadow:0 0 0 3px color-mix(in oklab, var(--brand) 22%, transparent);
+}
+.grid-2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.grid-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px}
+.drawer-foot{
+  padding:14px 20px;
+  border-top:1px solid var(--line-soft);
+  display:flex; align-items:center; gap:8px;
+  background:var(--panel);
+}
+.drawer-foot .spacer{flex:1}
+
+/* ─────── Toast ─────── */
+.toast{
+  position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(20px);
+  padding:12px 18px;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:10px;
+  color:var(--ink);
+  font-size:13px;
+  box-shadow:var(--shadow);
+  opacity:0; pointer-events:none;
+  transition:opacity .18s, transform .18s;
+  z-index:200;
+  display:flex; align-items:center; gap:8px;
+}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto}
+.toast.ok{border-color:color-mix(in oklab, var(--ok) 40%, var(--line))}
+.toast.err{border-color:color-mix(in oklab, var(--danger) 40%, var(--line))}
+.toast .toast-dot{width:8px; height:8px; border-radius:50%; background:var(--brand)}
+.toast.ok .toast-dot{background:var(--ok)}
+.toast.err .toast-dot{background:var(--danger)}
+
+/* ─────── Menu (import/export dropdown) ─────── */
+/* Menu backup alert dot */
+.menu-wrap{position:relative}
+.btn.has-alert::after{
+  content:""; position:absolute; top:8px; right:8px;
+  width:7px; height:7px; border-radius:50%;
+  background:var(--warn);
+  box-shadow:0 0 0 2px var(--bg-2), 0 0 0 3px color-mix(in oklab, var(--warn) 40%, transparent);
+  pointer-events:none;
+}
+.menu button.menu-primary{
+  background:color-mix(in oklab, var(--brand) 8%, transparent);
+}
+.menu button.menu-primary:hover{
+  background:color-mix(in oklab, var(--brand) 14%, var(--panel-hi));
+}
+.menu button .backup-age{
+  margin-left:auto;
+  font-family:var(--font-mono); font-size:10px;
+  color:var(--ink-4); letter-spacing:0.02em;
+  padding-left:8px;
+}
+.menu button .backup-age.stale{color:var(--warn)}
+.menu{
+  position:absolute; top:calc(100% + 6px); right:0;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:10px;
+  min-width:200px;
+  box-shadow:var(--shadow);
+  padding:5px;
+  z-index:60;
+  opacity:0; pointer-events:none; transform:translateY(-4px);
+  transition:opacity .12s, transform .12s;
+}
+.menu.open{opacity:1; pointer-events:auto; transform:translateY(0)}
+.menu button{
+  display:flex; align-items:center; gap:10px;
+  width:100%; padding:9px 10px; text-align:left;
+  background:transparent; border:none; color:var(--ink);
+  font-family:inherit; font-size:13px; border-radius:6px; cursor:pointer;
+}
+.menu button:hover{background:var(--panel-hi)}
+.menu-divider{height:1px; background:var(--line-soft); margin:5px 4px}
+.menu svg{width:15px;height:15px; color:var(--ink-3)}
+
+/* ─────── Confirm dialog ─────── */
+.dialog-scrim{
+  position:fixed; inset:0; z-index:150;
+  background:rgba(4,8,20,0.55); backdrop-filter:blur(4px);
+  display:none; align-items:center; justify-content:center;
+}
+.dialog-scrim.open{display:flex}
+.dialog{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:20px 22px;
+  min-width:340px; max-width:440px;
+  box-shadow:var(--shadow);
+}
+.dialog h3{margin:0 0 6px 0; font-size:16px; font-weight:600; color:var(--ink)}
+.dialog p{margin:0 0 16px 0; color:var(--ink-2); font-size:13.5px; line-height:1.55}
+.dialog-foot{display:flex; justify-content:flex-end; gap:8px}
+
+/* ─────── Meta bar in drawer ─────── */
+.meta-bar{
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  margin-bottom:18px;
+  padding:12px 14px;
+  background:var(--panel);
+  border:1px solid var(--line-soft);
+  border-radius:var(--radius-sm);
+}
+
+/* ─────── Small helpers ─────── */
+.hidden{display:none !important}
+.mono{font-family:var(--font-mono)}
+.divider{height:1px; background:var(--line-soft); margin:16px 0}
+
+/* ─────── Responsive ─────── */
+@media (max-width: 1280px){
+  .stats{grid-template-columns:repeat(3, 1fr)}
+}
+@media (max-width: 1100px){
+  .kanban{grid-template-columns:repeat(2, 1fr)}
+}
+@media (max-width: 780px){
+  .top-search{display:none}
+  .wrap{padding:20px 16px}
+  .stats{grid-template-columns:1fr 1fr; gap:10px}
+  .stat-value{font-size:24px}
+  .kanban{grid-template-columns:1fr}
+  .page-head{flex-direction:column; align-items:flex-start}
+  .brand-line-1{font-size:10px}
+  .brand-line-2{font-size:14px}
+  table.tickets .c-owner, table.tickets th:nth-child(5){display:none}
+}
+@media (max-width: 520px){
+  .stats{grid-template-columns:1fr}
+  table.tickets .c-date, table.tickets th:nth-child(2){display:none}
+  .drawer{width:100%}
+}
+</style>
+</head>
+<body data-theme="dark">
+
+<!-- ─────── Top bar ─────── -->
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="logo-badge" aria-hidden="true">
+        <img class="logo-img" src="data:image/jpeg;base64,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" alt="Top Coat Fabrication">
+      </div>
+      <div class="brand-text">
+        <div class="brand-line-1">Top Coat Fabrication</div>
+        <div class="brand-line-2">
+          IT Tickets
+          <span class="brand-tag" id="brand-tag">v2</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="top-search">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
+      </svg>
+      <input id="q" type="text" placeholder="Search tickets, owners, descriptions…" autocomplete="off">
+      <div class="kbd"><span id="kbd">⌘K</span></div>
+    </div>
+
+    <div class="top-actions">
+      <div class="sync-status" id="sync" data-s="loading" title="Loading…">
+        <span class="sync-dot"></span>
+        <span id="sync-text">Loading…</span>
+      </div>
+      <button class="btn" id="new-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        New ticket
+      </button>
+      <div class="menu-wrap">
+        <button class="btn icon-only" id="menu-btn" aria-label="More">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>
+          </svg>
+        </button>
+        <div class="menu" id="menu">
+          <button data-act="backup" class="menu-primary" id="menu-backup">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <span>Backup now</span>
+            <span class="backup-age" id="backup-age">never</span>
+          </button>
+          <button data-act="restore">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 3 3 8 8 8"/>
+            </svg>
+            Restore from backup…
+          </button>
+          <div class="menu-divider"></div>
+          <button data-act="import-xlsx">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+            </svg>
+            Import Excel (.xlsx / .xlsm)…
+          </button>
+          <button data-act="export-csv">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+              <line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/>
+            </svg>
+            Export CSV
+          </button>
+          <div class="menu-divider"></div>
+          <button data-act="signin" id="menu-signin" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+            </svg>
+            Sign in and sync
+          </button>
+          <button data-act="signout" id="menu-signout" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            Sign out
+          </button>
+          <button data-act="toggle-theme">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span id="theme-label">Light theme</span>
+          </button>
+          <button data-act="clear" style="color:var(--danger)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+            </svg>
+            Clear all tickets…
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ─────── Main content ─────── -->
+<main class="wrap">
+  <div class="page-head">
+    <div class="page-title-block">
+      <h1>Tickets, <em>tracked cleanly.</em></h1>
+      <div class="page-sub" id="page-sub">Loading…</div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats" id="stats"></div>
+
+  <!-- Charts -->
+  <div class="charts" id="charts"></div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="filter-group" id="year-filters">
+      <span class="filter-label">Year</span>
+      <!-- year pills injected here -->
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Status</span>
+      <button class="pill active" data-filter="status" data-value="all">All <span class="count" id="cnt-all">0</span></button>
+      <button class="pill" data-filter="status" data-value="Open">Open <span class="count" id="cnt-open">0</span></button>
+      <button class="pill" data-filter="status" data-value="In Progress">In Progress <span class="count" id="cnt-prog">0</span></button>
+      <button class="pill" data-filter="status" data-value="Blocked">Blocked <span class="count" id="cnt-blk">0</span></button>
+      <button class="pill" data-filter="status" data-value="Closed">Closed <span class="count" id="cnt-clo">0</span></button>
+    </div>
+
+    <div class="filter-group">
+      <span class="filter-label">Priority</span>
+      <button class="pill active" data-filter="priority" data-value="all">All</button>
+      <button class="pill" data-filter="priority" data-value="Critical">Critical</button>
+      <button class="pill" data-filter="priority" data-value="High">High</button>
+      <button class="pill" data-filter="priority" data-value="Medium">Medium</button>
+      <button class="pill" data-filter="priority" data-value="Low">Low</button>
+    </div>
+
+    <div class="tb-spacer"></div>
+
+    <div class="view-toggle" role="tablist" aria-label="View">
+      <button id="view-list" class="on" aria-pressed="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+          <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+        </svg>
+        List
+      </button>
+      <button id="view-board" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="10" rx="1"/>
+        </svg>
+        Board
+      </button>
+    </div>
+  </div>
+
+  <!-- List view -->
+  <div id="view-list-wrap">
+    <div class="table-wrap">
+      <table class="tickets" id="tbl">
+        <thead>
+          <tr>
+            <th data-sort="id" style="width:110px">ID <span class="sort-arrow"></span></th>
+            <th data-sort="date" style="width:104px">Date <span class="sort-arrow"></span></th>
+            <th data-sort="status" style="width:120px">Status <span class="sort-arrow"></span></th>
+            <th data-sort="priority" style="width:110px">Priority <span class="sort-arrow"></span></th>
+            <th data-sort="description">Issue <span class="sort-arrow"></span></th>
+            <th data-sort="owner" style="width:170px">Owner <span class="sort-arrow"></span></th>
+            <th data-sort="time" style="width:80px; text-align:right">Time <span class="sort-arrow"></span></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Board view -->
+  <div id="view-board-wrap" class="hidden">
+    <div class="kanban" id="kanban"></div>
+  </div>
+</main>
+
+<!-- ─────── Drawer (detail / edit) ─────── -->
+<div class="drawer-scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <button class="close-btn" id="close-drawer" aria-label="Close">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+    <div class="drawer-head-title" id="drawer-title">New ticket</div>
+  </div>
+  <div class="drawer-body">
+    <div class="meta-bar" id="meta-bar"></div>
+
+    <div class="field">
+      <label for="f-description">Issue</label>
+      <input id="f-description" type="text" placeholder="Short summary of the problem">
+    </div>
+
+    <div class="grid-3">
+      <div class="field">
+        <label for="f-date">Date</label>
+        <input id="f-date" type="date">
+      </div>
+      <div class="field">
+        <label for="f-status">Status</label>
+        <select id="f-status">
+          <option>Open</option><option>In Progress</option><option>Blocked</option><option>Closed</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-priority">Priority</label>
+        <select id="f-priority">
+          <option>Critical</option><option>High</option><option>Medium</option><option>Low</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="f-owner">Owner</label>
+        <input id="f-owner" type="text" list="owners" placeholder="Who's on it?">
+      </div>
+      <div class="field">
+        <label for="f-time">Time (minutes)</label>
+        <input id="f-time" type="number" min="0" step="5" placeholder="0">
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="f-impact">Impact</label>
+      <textarea id="f-impact" placeholder="Who's affected? What's blocked?"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="f-actions">Actions taken</label>
+      <textarea id="f-actions" placeholder="What was tried, in order"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="f-notes">Notes</label>
+      <textarea id="f-notes" placeholder="Root cause, follow-ups, references"></textarea>
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="f-loggedBy">Logged by</label>
+        <input id="f-loggedBy" type="text" placeholder="Chirt">
+      </div>
+      <div class="field">
+        <label for="f-resolvedBy">Resolved by</label>
+        <input id="f-resolvedBy" type="text" placeholder="—">
+      </div>
+    </div>
+
+    <datalist id="owners">
+      <option value="Chirt"><option value="Han"><option value="Bobby"><option value="Kim"><option value="Joel"><option value="Stephanie">
+    </datalist>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn ghost" id="delete-btn" style="color:var(--danger); display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/>
+      </svg>
+      Delete
+    </button>
+    <div class="spacer"></div>
+    <button class="btn" id="cancel-btn">Cancel</button>
+    <button class="btn primary" id="save-btn">Save ticket</button>
+  </div>
+</aside>
+
+<!-- ─────── Confirm dialog ─────── -->
+<div class="dialog-scrim" id="confirm-scrim">
+  <div class="dialog">
+    <h3 id="confirm-title">Confirm</h3>
+    <p id="confirm-msg">Are you sure?</p>
+    <div class="dialog-foot">
+      <button class="btn" id="confirm-no">Cancel</button>
+      <button class="btn primary" id="confirm-yes" style="background:var(--danger); border-color:var(--danger); color:#fff">Yes, do it</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─────── Sign-in overlay ─────── -->
+<div class="signin-overlay" id="signin">
+  <div class="signin-card">
+    <div class="signin-logo">
+      <img id="signin-logo-img" src="" alt="Top Coat Fabrication">
+    </div>
+    <div class="signin-eyebrow">Top Coat Fabrication IT</div>
+    <h2 class="signin-title">Sign in to <em>track tickets.</em></h2>
+    <p class="signin-sub">Use your Top Coat Microsoft&nbsp;365 account. Tickets sync to SharePoint so the whole IT team sees the same list in real time.</p>
+    <button class="signin-btn" id="signin-btn">
+      <svg viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="9" height="9" fill="#F35325"/>
+        <rect x="11" y="1" width="9" height="9" fill="#81BC06"/>
+        <rect x="1" y="11" width="9" height="9" fill="#05A6F0"/>
+        <rect x="11" y="11" width="9" height="9" fill="#FFBA08"/>
+      </svg>
+      Sign in with Microsoft
+    </button>
+    <div class="signin-alt">
+      or <a id="continue-offline">continue offline</a> with browser-only storage
+    </div>
+    <div class="signin-error" id="signin-error"></div>
+  </div>
+</div>
+
+<!-- ─────── Toast ─────── -->
+<div class="toast" id="toast"><span class="toast-dot"></span><span id="toast-msg"></span></div>
+
+<!-- ─────── Hidden import inputs ─────── -->
+<input type="file" id="fi-json" accept=".json,application/json" class="hidden">
+<input type="file" id="fi-xlsx" accept=".xlsx,.xlsm,.xls" class="hidden">
+
+<script>
+/* ────────────────────────────────────────────────────────────
+   SharePoint sync (MSAL + Microsoft Graph)
+──────────────────────────────────────────────────────────── */
+const SP_CONFIG = {
+  clientId: "d422751a-06b5-4c2b-aaf5-26da4c31ca65",
+  tenantId: "33f05b13-a7a5-4e78-8e18-d69170b7da13",
+  siteName: "TopCoatMain",
+  filePath: "/Leadership Team/IT/IT Tickets/it_worklog_data.json",
+  scopes:   ["Sites.ReadWrite.All"]
+};
+
+const OFFLINE_KEY = "topcoat_tickets_offline_mode";
+
+let msalApp = null;
+let msalAccount = null;
+let siteId = null, driveId = null, fileId = null;
+let mode = "offline";           // "online" | "offline"
+let saveTimer = 0;
+let saveInFlight = false;
+let savePending = false;
+
+function setStatus(state, text){
+  const el = document.getElementById("sync");
+  if(!el) return;
+  el.setAttribute("data-s", state);
+  const t = el.querySelector("#sync-text");
+  if(t) t.textContent = text;
+  el.title = text;
+}
+
+function showSignIn(){ document.getElementById("signin").classList.add("open"); }
+function hideSignIn(){ document.getElementById("signin").classList.remove("open"); }
+
+function updateAuthMenuItems(){
+  const signinItem  = document.getElementById("menu-signin");
+  const signoutItem = document.getElementById("menu-signout");
+  if(!signinItem || !signoutItem) return;
+  if(mode === "online" && msalAccount){
+    signinItem.style.display = "none";
+    signoutItem.style.display = "flex";
+    // Update the trailing text node with the account label
+    const label = msalAccount.username ? `Sign out (${msalAccount.username})` : "Sign out";
+    const svg = signoutItem.querySelector("svg");
+    signoutItem.textContent = "";
+    if(svg) signoutItem.appendChild(svg);
+    signoutItem.appendChild(document.createTextNode(" " + label));
+  } else {
+    signinItem.style.display = "flex";
+    signoutItem.style.display = "none";
+  }
+}
+
+/* ── MSAL ── */
+function isInIframe(){
+  try { return window.self !== window.top; }
+  catch(_) { return true; } // Cross-origin access throws — definitely in a frame
+}
+
+async function initAuth(){
+  if(!window.msal){ throw new Error("MSAL library not loaded"); }
+  msalApp = new msal.PublicClientApplication({
+    auth: {
+      clientId: SP_CONFIG.clientId,
+      authority: `https://login.microsoftonline.com/${SP_CONFIG.tenantId}`,
+      redirectUri: window.location.origin + window.location.pathname
+    },
+    cache: { cacheLocation: "sessionStorage" }
+  });
+  await msalApp.initialize();
+  const response = await msalApp.handleRedirectPromise();
+  if(response?.account){ msalAccount = response.account; return; }
+  const accts = msalApp.getAllAccounts();
+  if(accts.length) msalAccount = accts[0];
+}
+
+async function doSignIn(){
+  const err = document.getElementById("signin-error");
+  const btn = document.getElementById("signin-btn");
+  err.classList.remove("show");
+  if(!msalApp){
+    err.textContent = "Sign-in library isn't loaded — check your internet connection and refresh.";
+    err.classList.add("show"); return;
+  }
+  try {
+    btn.disabled = true;
+    localStorage.removeItem(OFFLINE_KEY);
+    if(isInIframe()){
+      // Popup flow works when embedded (Electron webview, iframe, etc.)
+      const result = await msalApp.loginPopup({ scopes: SP_CONFIG.scopes });
+      btn.disabled = false;
+      if(result?.account){
+        msalAccount = result.account;
+        mode = "online";
+        hideSignIn();
+        await loadTickets();
+        renderAll();
+        updateAuthMenuItems();
+      }
+    } else {
+      await msalApp.loginRedirect({ scopes: SP_CONFIG.scopes });
+      // Page redirects — nothing after this runs
+    }
+  } catch(e){
+    btn.disabled = false;
+    // User closed the popup — quiet failure, don't show as error
+    if(String(e.message || e).includes("user_cancelled") || String(e.errorCode || "") === "user_cancelled") return;
+    err.textContent = "Sign-in failed: " + (e.message || e);
+    err.classList.add("show");
+  }
+}
+
+async function doSignOut(){
+  if(!msalApp || !msalAccount) return;
+  clearTimeout(saveTimer);
+  if(isInIframe()){
+    try { await msalApp.logoutPopup({ account: msalAccount }); }
+    catch(_){ /* user closed popup — proceed anyway */ }
+    msalAccount = null;
+    mode = "offline";
+    localStorage.setItem(OFFLINE_KEY, "1");
+    setStatus("offline", "Signed out");
+    showSignIn();
+    updateAuthMenuItems();
+  } else {
+    await msalApp.logoutRedirect({ account: msalAccount });
+  }
+}
+
+async function getToken(){
+  if(!msalApp || !msalAccount) throw new Error("Not signed in");
+  try {
+    const r = await msalApp.acquireTokenSilent({ scopes: SP_CONFIG.scopes, account: msalAccount });
+    return r.accessToken;
+  } catch(_) {
+    if(isInIframe()){
+      const r = await msalApp.acquireTokenPopup({ scopes: SP_CONFIG.scopes, account: msalAccount });
+      return r.accessToken;
+    }
+    await msalApp.acquireTokenRedirect({ scopes: SP_CONFIG.scopes, account: msalAccount });
+    throw new Error("Redirecting to re-authenticate");
+  }
+}
+
+/* ── Graph ── */
+async function graphFetch(path, opts = {}){
+  const token = await getToken();
+  const url = path.startsWith("http") ? path : `https://graph.microsoft.com/v1.0${path}`;
+  const res = await fetch(url, {
+    ...opts,
+    headers: { "Authorization": `Bearer ${token}`, ...(opts.headers || {}) }
+  });
+  if(!res.ok){
+    let msg;
+    try { msg = (await res.json()).error?.message || res.statusText; } catch { msg = res.statusText; }
+    throw new Error(`Graph ${res.status}: ${msg}`);
+  }
+  const ct = res.headers.get("content-type") || "";
+  if(ct.includes("application/json")) return res.json();
+  return res.text();
+}
+
+async function discoverFile(){
+  if(driveId && fileId) return;
+  const search = await graphFetch(`/sites?search=${encodeURIComponent(SP_CONFIG.siteName)}`);
+  const list = search.value || [];
+  const site = list.find(s => s.name === SP_CONFIG.siteName)
+            || list.find(s => (s.displayName || "").toLowerCase() === SP_CONFIG.siteName.toLowerCase())
+            || list[0];
+  if(!site) throw new Error(`SharePoint site "${SP_CONFIG.siteName}" not found`);
+  siteId = site.id;
+  const drives = await graphFetch(`/sites/${siteId}/drives`);
+  const drive = (drives.value || []).find(d => d.name === "Documents") || (drives.value || [])[0];
+  if(!drive) throw new Error("Documents drive not found");
+  driveId = drive.id;
+  const file = await graphFetch(`/drives/${driveId}/root:${SP_CONFIG.filePath}`);
+  fileId = file.id;
+}
+
+async function loadFromSharePoint(){
+  await discoverFile();
+  const content = await graphFetch(`/drives/${driveId}/items/${fileId}/content`);
+  return Array.isArray(content) ? content : [];
+}
+
+async function saveToSharePoint(data){
+  await discoverFile();
+  await graphFetch(`/drives/${driveId}/items/${fileId}/content`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data, null, 2)
+  });
+}
+
+/* ── Debounced push ── */
+function schedulePush(){
+  if(mode !== "online") return;
+  clearTimeout(saveTimer);
+  setStatus("dirty", "Unsaved changes");
+  saveTimer = setTimeout(pushNow, 800);
+}
+
+async function pushNow(){
+  if(mode !== "online") return;
+  if(saveInFlight){ savePending = true; return; }
+  saveInFlight = true;
+  setStatus("saving", "Saving…");
+  try {
+    await saveToSharePoint(tickets);
+    setStatus("ok", "Saved");
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets)); } catch {}
+  } catch(e){
+    setStatus("err", "Save failed — retrying");
+    console.error(e);
+    setTimeout(() => schedulePush(), 3000);
+  } finally {
+    saveInFlight = false;
+    if(savePending){ savePending = false; schedulePush(); }
+  }
+}
+
+/* ────────────────────────────────────────────────────────────
+   Data model
+──────────────────────────────────────────────────────────── */
+const STORAGE_KEY = "topcoat_tickets_v2";
+const THEME_KEY = "topcoat_tickets_theme";
+
+// Seed sample tickets so the app has life on first load; overwritten by import.
+const SEED = [
+  { id:"TC-001", date:"2026-07-14", status:"Closed",      priority:"High",     description:"Barracuda phishing wave — impersonation alerts on donna@, jason@, kenny@", owner:"Chirt", impact:"3 users targeted; 1 click before block. Domain quarantined.", actions:"Reviewed message trace, added sender to block list, ran end-user awareness reminder.", notes:"Recurring pattern. Consider MFA prompt review.", loggedBy:"Chirt", resolvedBy:"Chirt", time:45 },
+  { id:"TC-002", date:"2026-07-15", status:"In Progress", priority:"Medium",   description:"Starlink WAN failover on Zyxel USG FLEX 100H", owner:"Chirt", impact:"No user impact — failover project", actions:"Connectivity checks configured on ge1/ge2 (8.8.8.8, 1.1.1.1). Physical connect + WAN Trunk primary/passive remaining.", notes:"Enforce ge1 primary, ge2 passive (not load balance).", loggedBy:"Chirt", resolvedBy:"", time:120 },
+  { id:"TC-003", date:"2026-07-11", status:"Closed",      priority:"Low",      description:"Excel showing #REF errors in monthly bill of material", owner:"Kim",   impact:"BOM template", actions:"Rebuilt reference to Sheet2, reprotected sheet.", notes:"", loggedBy:"Kim", resolvedBy:"Kim", time:20 },
+  { id:"TC-004", date:"2026-07-10", status:"Closed",      priority:"Critical", description:"Sophos flagged trojan on shared laptop (welding office)", owner:"Han",   impact:"Shared PC quarantined; welding office offline 40 min", actions:"Isolated device via NinjaOne, ran clean scan, restored from image.", notes:"Root cause: user opened attachment from spoofed vendor.", loggedBy:"Han", resolvedBy:"Han", time:90 },
+  { id:"TC-005", date:"2026-07-09", status:"Open",        priority:"Medium",   description:"Copilot locking SharePoint files when co-editing", owner:"Chirt", impact:"Random file lock on Estimating docs", actions:"Reproduced with Kim's account. Opened MS ticket.", notes:"Waiting on MS response. Workaround: close Copilot pane before editing.", loggedBy:"Chirt", resolvedBy:"", time:30 },
+  { id:"TC-006", date:"2026-07-08", status:"Closed",      priority:"High",     description:"HP laptop won't drive dual 4K monitors over single USB-C", owner:"Chirt", impact:"1 user, seating plan needs re-eval", actions:"Confirmed HP 445 G9 lacks Thunderbolt. Ordered USB-C hub with DP-alt-mode + verified.", notes:"Consider Thunderbolt 4/5 laptops for next refresh cycle.", loggedBy:"Chirt", resolvedBy:"Chirt", time:60 },
+  { id:"TC-007", date:"2026-07-05", status:"Blocked",     priority:"High",     description:"Outlook add-in (Claude for Outlook) button not appearing in ribbon", owner:"Chirt", impact:"Add-in deployed to tenant, no visible action", actions:"Added Mail.Read, Calendar.Read, User.Read with admin consent. Cleared cache, restarted.", notes:"Waiting on tenant policy review. May be centralized add-in policy override.", loggedBy:"Chirt", resolvedBy:"", time:75 },
+  { id:"TC-008", date:"2026-07-02", status:"Closed",      priority:"Medium",   description:"Zultys phone extension 208 not receiving calls", owner:"Bobby", impact:"1 user", actions:"Rebooted handset, re-registered SIP profile.", notes:"MOH working normally after.", loggedBy:"Bobby", resolvedBy:"Bobby", time:15 },
+  { id:"TC-009", date:"2026-06-30", status:"Closed",      priority:"Low",      description:"New hire onboarding — Joel (welding tech)", owner:"Stephanie", impact:"Standard onboarding", actions:"Provisioned M365, added to Welders group, imaged laptop, distributed hardware.", notes:"Followed the New Hire IT Checklist.", loggedBy:"Stephanie", resolvedBy:"Stephanie", time:180 },
+  { id:"TC-010", date:"2026-06-28", status:"Closed",      priority:"Critical", description:"NinjaOne agent unresponsive on 4 warehouse machines", owner:"Chirt", impact:"No remote visibility on 4 PCs", actions:"SSH'd via LAN, restarted NinjaOne service. Reinstalled agent on 2 that stayed dead.", notes:"Windows Update rollup pattern — deferred future updates by 7d.", loggedBy:"Chirt", resolvedBy:"Chirt", time:110 }
+];
+
+let tickets = [];
+let statusFilter = "all";
+let priorityFilter = "all";
+let yearFilter = "all";
+let query = "";
+let sortKey = "date";
+let sortDir = "desc";
+let editingId = null;
+let currentView = "list";
+let weeklyMode = localStorage.getItem("topcoat_weekly_mode") || "active"; // "active" | "last7"
+
+/* ──── Storage ──── */
+async function loadTickets(){
+  if(mode === "online"){
+    setStatus("loading", "Loading from SharePoint…");
+    try {
+      const remote = await loadFromSharePoint();
+      tickets = remote;
+      const before = tickets.length;
+      tickets = tickets.filter(t => (t.description || "").toString().trim());
+      const removed = before - tickets.length;
+      if(removed){
+        try { await saveToSharePoint(tickets); } catch {}
+        setTimeout(() => toast(`Cleaned ${removed} empty ticket${removed === 1 ? "" : "s"}`, "ok"), 500);
+      }
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets)); } catch {}
+      setStatus("ok", `Loaded · ${tickets.length}`);
+      return;
+    } catch(e){
+      console.error("SharePoint load failed:", e);
+      setStatus("err", "Cloud load failed — using local");
+      toast("Couldn't reach SharePoint. Working from local cache.", "err");
+      // fall through to local cache
+    }
+  }
+  // Offline path (or online fallback)
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      tickets = JSON.parse(raw);
+      const before = tickets.length;
+      tickets = tickets.filter(t => (t.description || "").toString().trim());
+      const removed = before - tickets.length;
+      if(removed){
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets)); } catch {}
+        setTimeout(() => toast(`Cleaned ${removed} empty ticket${removed === 1 ? "" : "s"}`, "ok"), 500);
+      }
+      if(mode === "offline") setStatus("offline", "Offline · click to sign in");
+      return;
+    }
+  } catch {}
+  tickets = structuredClone(SEED);
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets)); } catch {}
+  if(mode === "offline") setStatus("offline", "Offline · click to sign in");
+}
+
+function persist(){
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets)); }
+  catch(e){ toast("Local cache full — export a backup", "err"); }
+  if(mode === "online") schedulePush();
+}
+
+/* ──── Theme ──── */
+function initTheme(){
+  const saved = localStorage.getItem(THEME_KEY) || "dark";
+  document.body.setAttribute("data-theme", saved);
+  document.getElementById("theme-label").textContent = saved === "dark" ? "Light theme" : "Dark theme";
+}
+function toggleTheme(){
+  const cur = document.body.getAttribute("data-theme");
+  const next = cur === "dark" ? "light" : "dark";
+  document.body.setAttribute("data-theme", next);
+  localStorage.setItem(THEME_KEY, next);
+  document.getElementById("theme-label").textContent = next === "dark" ? "Light theme" : "Dark theme";
+  // Charts use resolved CSS var values baked into SVG stroke attributes, so redraw them.
+  if(typeof renderCharts === "function") renderCharts();
+}
+
+/* ──── Helpers ──── */
+const NBSP = "\u00A0";
+function esc(s){
+  if(s == null) return "";
+  return String(s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+function fmtDate(s){
+  if(!s) return "—";
+  const d = new Date(s + "T00:00:00");
+  if(isNaN(d)) return s;
+  return d.toLocaleDateString(undefined, { year:"numeric", month:"short", day:"2-digit" });
+}
+function fmtTime(min){
+  if(min == null || min === "") return "—";
+  const n = Number(min); if(isNaN(n)) return String(min);
+  if(n < 60) return n + "m";
+  const h = Math.floor(n/60), m = n % 60;
+  return m ? `${h}h${NBSP}${m}m` : `${h}h`;
+}
+function slug(s){ return String(s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g,"-"); }
+function priorityKey(p){ return "p-" + slug(p) }
+function statusKey(s){
+  const k = String(s || "").toLowerCase();
+  if(k.includes("progress")) return "s-progress";
+  if(k.includes("block")) return "s-blocked";
+  if(k.includes("closed") || k.includes("done") || k.includes("resolved")) return "s-closed";
+  return "s-open";
+}
+function nextId(){
+  let max = 0;
+  for(const t of tickets){
+    const m = String(t.id || "").match(/(\d+)$/);
+    if(m){ const n = parseInt(m[1],10); if(n > max) max = n; }
+  }
+  return "TC-" + String(max + 1).padStart(3, "0");
+}
+
+/* ──── Avatar color from name ──── */
+const AVATAR_PALETTE = [
+  ["#3AA0FF", "#0A1020"],
+  ["#8B5CF6", "#FFFFFF"],
+  ["#3FDD8A", "#0A1020"],
+  ["#FFB547", "#0A1020"],
+  ["#FF5A6C", "#FFFFFF"],
+  ["#2DD4BF", "#0A1020"],
+  ["#F472B6", "#0A1020"],
+  ["#A78BFA", "#0A1020"]
+];
+function avatarFor(name){
+  const n = String(name || "").trim() || "—";
+  const initials = n.split(/\s+/).map(w => w[0] || "").join("").slice(0,2).toUpperCase() || "—";
+  let hash = 0;
+  for(let i=0;i<n.length;i++) hash = ((hash << 5) - hash) + n.charCodeAt(i);
+  const [bg, fg] = AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+  return { initials, bg, fg };
+}
+
+/* ──── Rendering ──── */
+function getAvailableYears(){
+  const years = new Set();
+  for(const t of tickets){
+    const y = String(t.date || "").slice(0,4);
+    if(/^\d{4}$/.test(y)) years.add(y);
+  }
+  return Array.from(years).sort().reverse();
+}
+
+function yearScopedTickets(){
+  if(yearFilter === "all") return tickets;
+  return tickets.filter(t => String(t.date || "").startsWith(yearFilter));
+}
+
+function filteredTickets(){
+  const q = query.trim().toLowerCase();
+  return yearScopedTickets().filter(t => {
+    if(statusFilter !== "all" && String(t.status || "").toLowerCase() !== statusFilter.toLowerCase()) return false;
+    if(priorityFilter !== "all" && String(t.priority || "").toLowerCase() !== priorityFilter.toLowerCase()) return false;
+    if(q){
+      const hay = [t.id, t.description, t.owner, t.notes, t.actions, t.impact, t.loggedBy, t.resolvedBy]
+        .map(v => String(v || "").toLowerCase()).join(" ");
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function sortTickets(list){
+  const dir = sortDir === "asc" ? 1 : -1;
+  const rank = { Critical:4, High:3, Medium:2, Low:1 };
+  return list.slice().sort((a,b) => {
+    let av = a[sortKey], bv = b[sortKey];
+    if(sortKey === "priority"){ av = rank[a.priority] || 0; bv = rank[b.priority] || 0; }
+    else if(sortKey === "time"){ av = Number(a.time) || 0; bv = Number(b.time) || 0; }
+    else if(sortKey === "date"){ av = a.date || ""; bv = b.date || ""; }
+    else if(sortKey === "id"){
+      const ap = parseInt(String(a.id).match(/(\d+)$/)?.[1] || 0, 10);
+      const bp = parseInt(String(b.id).match(/(\d+)$/)?.[1] || 0, 10);
+      av = ap; bv = bp;
+    }
+    else { av = String(av || "").toLowerCase(); bv = String(bv || "").toLowerCase(); }
+    if(av < bv) return -1 * dir;
+    if(av > bv) return 1 * dir;
+    return 0;
+  });
+}
+
+function renderYearFilters(){
+  const wrap = document.getElementById("year-filters");
+  const years = getAvailableYears();
+
+  // If the current year filter no longer exists in the data (e.g. after import), reset.
+  if(yearFilter !== "all" && !years.includes(yearFilter)) yearFilter = "all";
+
+  // Per-year counts (respecting only status/priority filters — for accurate navigation counts)
+  const passesAttr = t => {
+    if(statusFilter !== "all" && String(t.status || "").toLowerCase() !== statusFilter.toLowerCase()) return false;
+    if(priorityFilter !== "all" && String(t.priority || "").toLowerCase() !== priorityFilter.toLowerCase()) return false;
+    return true;
+  };
+  const totalCount = tickets.filter(passesAttr).length;
+  const perYear = {};
+  for(const y of years) perYear[y] = tickets.filter(t => String(t.date || "").startsWith(y) && passesAttr(t)).length;
+
+  let html = `<span class="filter-label">Year</span>`;
+  html += `<button class="pill ${yearFilter === "all" ? "active" : ""}" data-filter="year" data-value="all">All <span class="count">${totalCount}</span></button>`;
+  for(const y of years){
+    html += `<button class="pill ${yearFilter === y ? "active" : ""}" data-filter="year" data-value="${esc(y)}">${esc(y)} <span class="count">${perYear[y]}</span></button>`;
+  }
+  wrap.innerHTML = html;
+}
+
+function renderStats(){
+  const scoped = yearScopedTickets();
+  const total = scoped.length;
+  const open = scoped.filter(t => (t.status || "").toLowerCase() === "open").length;
+  const prog = scoped.filter(t => /progress/i.test(t.status || "")).length;
+  const crit = scoped.filter(t => (t.priority || "").toLowerCase() === "critical").length;
+  const blk  = scoped.filter(t => /block/i.test(t.status || "")).length;
+  const closed = scoped.filter(t => /(closed|resolved|done)/i.test(t.status || "")).length;
+  const totalMin = scoped.reduce((a,t) => a + (Number(t.time) || 0), 0);
+  const totalHours = Math.round(totalMin / 60 * 10) / 10;
+
+  // Weekly workload: two modes, user-selectable via the pill toggle in the card.
+  //   "active"  → avg = minutes-on-dated-tickets ÷ number of weeks that had time logged
+  //   "last7"   → total minutes on dated tickets in the past 7 days from today
+  let weeklyAvg = 0;
+  let weeklySub = "no data";
+  let weeklyLabel = weeklyMode === "last7" ? "Last 7 days" : "Weekly average";
+
+  if(weeklyMode === "last7"){
+    const today = new Date(); today.setHours(23,59,59,999);
+    const start = new Date(today); start.setDate(start.getDate() - 6); start.setHours(0,0,0,0);
+    let last7Min = 0;
+    let last7Count = 0;
+    for(const t of scoped){
+      if(!t.date) continue;
+      const min = Number(t.time) || 0;
+      if(min <= 0) continue;
+      const d = new Date(t.date + "T00:00:00");
+      if(isNaN(d) || d < start || d > today) continue;
+      last7Min += min;
+      last7Count++;
+    }
+    weeklyAvg = Math.round(last7Min / 60 * 10) / 10;
+    const startLabel = start.toLocaleDateString(undefined, { month:"short", day:"2-digit" });
+    if(last7Min > 0){
+      weeklySub = `${last7Count} ticket${last7Count === 1 ? "" : "s"} · since ${startLabel}`;
+    } else {
+      weeklySub = `no time logged since ${startLabel}`;
+    }
+  } else {
+    const activeWeeks = new Set();
+    let datedMin = 0;
+    for(const t of scoped){
+      if(!t.date) continue;
+      const min = Number(t.time) || 0;
+      if(min <= 0) continue;
+      const d = new Date(t.date + "T00:00:00");
+      if(isNaN(d)) continue;
+      datedMin += min;
+      activeWeeks.add(Math.floor(d.getTime() / 86400000 / 7));
+    }
+    const wkCount = activeWeeks.size;
+    if(wkCount > 0 && datedMin > 0){
+      weeklyAvg = Math.round((datedMin / 60 / wkCount) * 10) / 10;
+      weeklySub = wkCount === 1
+        ? "based on 1 active week"
+        : `avg of ${wkCount} active weeks`;
+    } else if(scoped.length){
+      weeklySub = totalMin > 0 ? "no dated tickets" : "no time logged";
+    }
+  }
+
+  const weeklyToggle = `
+    <div class="weekly-modes" role="tablist" aria-label="Weekly workload mode">
+      <button class="wk-mode ${weeklyMode === 'active' ? 'on' : ''}" data-wk-mode="active" title="Average across weeks that had logged time">avg</button>
+      <button class="wk-mode ${weeklyMode === 'last7' ? 'on' : ''}" data-wk-mode="last7" title="Total logged in the past 7 days">7d</button>
+    </div>
+  `;
+
+  // Sparkline: when a specific year is selected, show 12 months of that year.
+  // When "all", show last 14 days of activity across all data.
+  let sparkSvg = "";
+  if(yearFilter === "all"){
+    const today = new Date(); today.setHours(0,0,0,0);
+    const buckets = new Array(14).fill(0);
+    for(const t of tickets){
+      if(!t.date) continue;
+      const d = new Date(t.date + "T00:00:00");
+      if(isNaN(d)) continue;
+      const diff = Math.floor((today - d) / 86400000);
+      if(diff >= 0 && diff < 14) buckets[13 - diff]++;
+    }
+    sparkSvg = buildSparkBars(buckets, "14d");
+  } else {
+    const buckets = new Array(12).fill(0);
+    for(const t of tickets){
+      if(!t.date) continue;
+      if(!String(t.date).startsWith(yearFilter)) continue;
+      const m = parseInt(String(t.date).slice(5,7), 10);
+      if(m >= 1 && m <= 12) buckets[m - 1]++;
+    }
+    sparkSvg = buildSparkBars(buckets, "12m");
+  }
+
+  // Yearly breakdown for Time Logged card — time per year across all data (not scoped)
+  const years = getAvailableYears();
+  const perYearMin = {};
+  for(const y of years) perYearMin[y] = tickets
+    .filter(t => String(t.date || "").startsWith(y))
+    .reduce((a,t) => a + (Number(t.time) || 0), 0);
+  const maxYearMin = Math.max(1, ...Object.values(perYearMin));
+  const yearlyChart = years.length ? `
+    <div class="yearly-chart">
+      ${years.slice().reverse().map(y => {
+        const min = perYearMin[y] || 0;
+        const hgt = Math.max(3, Math.round((min / maxYearMin) * 26));
+        const hrs = Math.round(min / 60 * 10) / 10;
+        const on = (yearFilter === y) ? "on" : "";
+        return `<div class="yearly-bar ${on}" data-year="${esc(y)}" title="${esc(y)}: ${esc(hrs)}h (${esc(min)} min)">
+          <div class="bar-fill" style="height:${hgt}px"></div>
+          <div class="bar-label">${esc(y.slice(2))}</div>
+        </div>`;
+      }).join("")}
+    </div>` : "";
+
+  const cards = [
+    { cls:"c-open",  label:"Total tickets", value:total, sub:`${closed} closed · ${total - closed} active`, extra:`<div class="spark">${sparkSvg}</div>` },
+    { cls:"c-crit",  label:"Critical",       value:crit,  sub:crit ? `${crit} require attention` : "None open" },
+    { cls:"c-open",  label:"Open",           value:open,  sub:blk ? `${open} open · ${blk} blocked` : (open ? "In queue" : "Queue clear") },
+    { cls:"c-prog",  label:"In progress",    value:prog,  sub:prog ? "Being worked" : "None active" },
+    { cls:"c-done",  label:"Time logged",    value:totalHours, unit:"h", sub:`${totalMin.toLocaleString()} minutes${yearFilter !== "all" ? " · in " + yearFilter : " total"}`, extra:yearlyChart },
+    { cls:"c-prog",  label:weeklyLabel,      value:weeklyAvg,  unit:"h", sub:weeklySub, extraLabel:weeklyToggle }
+  ];
+
+  document.getElementById("stats").innerHTML = cards.map(c => `
+    <div class="stat ${c.cls}">
+      <div class="stat-label">
+        <span class="stat-dot"></span>
+        <span>${esc(c.label)}</span>
+        ${c.extraLabel || ""}
+      </div>
+      <div class="stat-value">${esc(c.value)}${c.unit ? `<span class="unit">${esc(c.unit)}</span>` : ""}</div>
+      <div class="stat-sub">${esc(c.sub)}</div>
+      ${c.extra || ""}
+    </div>
+  `).join("");
+
+  // Wire up yearly-bar clicks (act as year filter shortcuts)
+  document.querySelectorAll(".yearly-bar[data-year]").forEach(el => {
+    el.addEventListener("click", () => {
+      const y = el.dataset.year;
+      yearFilter = (yearFilter === y) ? "all" : y;
+      renderAll();
+    });
+  });
+
+  const scope = yearFilter === "all" ? "" : ` · scope: ${yearFilter}`;
+  document.getElementById("page-sub").innerHTML =
+    `<span class="mono">${total}</span> ticket${total===1?"":"s"} · ` +
+    `<span class="mono">${open + prog}</span> active · ` +
+    `<span class="mono">${totalHours}h</span> logged${scope}`;
+
+  // Status filter pill counts respect year filter
+  document.getElementById("cnt-all").textContent  = total;
+  document.getElementById("cnt-open").textContent = open;
+  document.getElementById("cnt-prog").textContent = prog;
+  document.getElementById("cnt-blk").textContent  = blk;
+  document.getElementById("cnt-clo").textContent  = closed;
+}
+
+function buildSparkBars(buckets, mode){
+  const max = Math.max(1, ...buckets);
+  const w = 100, h = 24, pad = 1;
+  const bw = (w - pad*2) / buckets.length;
+  const bars = buckets.map((v,i) => {
+    const bh = Math.max(2, (v / max) * (h - 4));
+    const x = pad + i * bw;
+    const y = h - bh - 1;
+    return `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${(bw - 1.2).toFixed(2)}" height="${bh.toFixed(2)}" rx="1.2" fill="currentColor" opacity="${v ? 1 : 0.25}"/>`;
+  }).join("");
+  return `<svg viewBox="0 0 ${w} ${h}" style="color:var(--brand)">${bars}</svg>`;
+}
+
+function renderList(){
+  const list = sortTickets(filteredTickets());
+  const tbody = document.getElementById("tbody");
+
+  // Sort arrows
+  document.querySelectorAll("#tbl thead th").forEach(th => {
+    const key = th.dataset.sort;
+    const arr = th.querySelector(".sort-arrow");
+    if(key === sortKey){ th.classList.add("sorted"); arr.textContent = sortDir === "asc" ? "↑" : "↓"; }
+    else { th.classList.remove("sorted"); arr.textContent = ""; }
+  });
+
+  if(!list.length){
+    tbody.innerHTML = `<tr><td colspan="7">
+      <div class="empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <h3>Nothing matching those filters</h3>
+        <p>Try clearing the search or resetting a filter.</p>
+      </div>
+    </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map(t => {
+    const av = avatarFor(t.owner);
+    const pk = priorityKey(t.priority);
+    return `
+      <tr data-id="${esc(t.id)}">
+        <td class="c-id ${pk}">${esc(t.id)}</td>
+        <td class="c-date">${esc(fmtDate(t.date))}</td>
+        <td><span class="chip ${statusKey(t.status)}">${esc(t.status || "Open")}</span></td>
+        <td><span class="chip ${pk}">${esc(t.priority || "Medium")}</span></td>
+        <td class="c-desc">
+          <div class="desc-inner">
+            <div class="desc-1">${esc(t.description || "—")}</div>
+            ${t.impact ? `<div class="desc-2">${esc(t.impact)}</div>` : ""}
+          </div>
+        </td>
+        <td class="c-owner">
+          <span class="owner-chip">
+            <span class="avatar" style="background:${av.bg}; color:${av.fg}">${esc(av.initials)}</span>
+            ${esc(t.owner || "—")}
+          </span>
+        </td>
+        <td class="c-time">${esc(fmtTime(t.time))}</td>
+      </tr>
+    `;
+  }).join("");
+
+  tbody.querySelectorAll("tr[data-id]").forEach(tr => {
+    tr.addEventListener("click", () => openDrawer(tr.dataset.id));
+  });
+}
+
+function renderBoard(){
+  const cols = [
+    { key:"Open",        cls:"open" },
+    { key:"In Progress", cls:"progress" },
+    { key:"Blocked",     cls:"blocked" },
+    { key:"Closed",      cls:"closed" }
+  ];
+  const list = sortTickets(filteredTickets());
+  const board = document.getElementById("kanban");
+  board.innerHTML = cols.map(col => {
+    const items = list.filter(t => (t.status || "").toLowerCase() === col.key.toLowerCase());
+    return `
+      <div class="kanban-col ${col.cls}">
+        <div class="kanban-head">
+          <div class="kanban-head-title"><span class="dot"></span>${esc(col.key)}</div>
+          <div class="kanban-head-count">${items.length}</div>
+        </div>
+        <div class="kanban-list">
+          ${items.length ? items.map(t => {
+            const av = avatarFor(t.owner);
+            return `
+              <div class="k-card ${priorityKey(t.priority)}" data-id="${esc(t.id)}">
+                <div class="k-card-head">
+                  <span class="k-id">${esc(t.id)}</span>
+                  <span class="chip ${priorityKey(t.priority)}">${esc(t.priority || "Medium")}</span>
+                </div>
+                <div class="k-desc">${esc(t.description || "—")}</div>
+                <div class="k-foot">
+                  <span class="owner-chip">
+                    <span class="avatar" style="background:${av.bg}; color:${av.fg}; width:20px; height:20px; font-size:9.5px">${esc(av.initials)}</span>
+                    ${esc(t.owner || "—")}
+                  </span>
+                  <span class="k-meta">${esc(fmtDate(t.date))} · ${esc(fmtTime(t.time))}</span>
+                </div>
+              </div>
+            `;
+          }).join("") : `<div class="k-empty">No tickets here.</div>`}
+        </div>
+      </div>
+    `;
+  }).join("");
+  board.querySelectorAll(".k-card").forEach(el => {
+    el.addEventListener("click", () => openDrawer(el.dataset.id));
+  });
+}
+
+function renderAll(){
+  renderYearFilters();
+  renderStats();
+  renderCharts();
+  if(currentView === "list") renderList();
+  else renderBoard();
+  updateBackupUi();
+}
+
+/* ──── Charts ──── */
+function buildDonut(segments, total){
+  const R = 40, C = 2 * Math.PI * R; // circumference ≈ 251.33
+  let cumulative = 0;
+  const arcs = segments.map(seg => {
+    if(!seg.value || total <= 0) return "";
+    const frac = seg.value / total;
+    const arc = frac * C;
+    const offset = -cumulative;
+    cumulative += arc;
+    // Tiny gap between segments for visual separation (except when a segment is 100%)
+    const gap = (frac < 0.999) ? 0.6 : 0;
+    const visible = Math.max(0, arc - gap);
+    return `<circle class="donut-seg" cx="50" cy="50" r="${R}" fill="none"
+             stroke="${seg.color}" stroke-width="14"
+             stroke-dasharray="${visible.toFixed(3)} ${(C - visible + 1).toFixed(3)}"
+             stroke-dashoffset="${offset.toFixed(3)}"
+             transform="rotate(-90 50 50)"
+             stroke-linecap="butt"><title>${esc(seg.label)}: ${seg.value}</title></circle>`;
+  }).join("");
+  return `
+    <div class="donut-wrap">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="${R}" fill="none" stroke="var(--panel-hi)" stroke-width="14"/>
+        ${arcs}
+      </svg>
+      <div class="donut-center">
+        <div class="n">${total}</div>
+        <div class="lbl">Ticket${total === 1 ? "" : "s"}</div>
+      </div>
+    </div>
+  `;
+}
+
+function buildLegend(items, total){
+  return `<div class="legend">${
+    items.map(it => {
+      const pct = total > 0 ? Math.round((it.value / total) * 100) : 0;
+      return `<div class="legend-item">
+        <span class="legend-swatch" style="background:${it.color}; color:${it.color}"></span>
+        <span class="legend-label">${esc(it.label)}</span>
+        <span class="legend-count">${it.value}</span>
+        <span class="legend-pct">${pct}%</span>
+      </div>`;
+    }).join("")
+  }</div>`;
+}
+
+function buildHBars(items, total){
+  if(!items.length) return `<div class="chart-empty">No data in scope</div>`;
+  const max = Math.max(1, ...items.map(i => i.value));
+  return `<div class="h-bars">${
+    items.map(it => {
+      const w = max > 0 ? Math.round((it.value / max) * 100) : 0;
+      return `<div class="h-bar">
+        <div class="h-bar-head">
+          <span class="h-bar-label">${esc(it.label)}</span>
+          <span class="h-bar-count">${it.value}</span>
+        </div>
+        <div class="h-bar-track">
+          <div class="h-bar-fill" style="width:${w}%; background:${it.color}"></div>
+        </div>
+      </div>`;
+    }).join("")
+  }</div>`;
+}
+
+// Resolve a CSS variable to its computed value (for use inside SVG stroke)
+function cssVar(name){
+  return getComputedStyle(document.body).getPropertyValue(name).trim() || "#3AA0FF";
+}
+
+function renderCharts(){
+  const scoped = yearScopedTickets();
+  const host = document.getElementById("charts");
+
+  // Priority breakdown
+  const P = [
+    { key:"Critical", color: cssVar("--danger") },
+    { key:"High",     color: cssVar("--warn") },
+    { key:"Medium",   color: cssVar("--brand") },
+    { key:"Low",      color: cssVar("--ok") }
+  ];
+  const prioSegs = P.map(p => ({
+    label: p.key, color: p.color,
+    value: scoped.filter(t => (t.priority || "").toLowerCase() === p.key.toLowerCase()).length
+  }));
+  const prioTotal = prioSegs.reduce((a,s) => a + s.value, 0);
+
+  // Status breakdown
+  const S = [
+    { key:"Open",        color: cssVar("--warn"),   match: t => (t.status || "").toLowerCase() === "open" },
+    { key:"In Progress", color: cssVar("--brand"),  match: t => /progress/i.test(t.status || "") },
+    { key:"Blocked",     color: cssVar("--danger"), match: t => /block/i.test(t.status || "") },
+    { key:"Closed",      color: cssVar("--ok"),     match: t => /(closed|resolved|done)/i.test(t.status || "") }
+  ];
+  const statSegs = S.map(s => ({ label: s.key, color: s.color, value: scoped.filter(s.match).length }));
+  const statTotal = statSegs.reduce((a,s) => a + s.value, 0);
+
+  // Workload by owner (top 6 by ticket count in scope)
+  const ownerMap = new Map();
+  for(const t of scoped){
+    const name = (t.owner || "").trim() || "Unassigned";
+    ownerMap.set(name, (ownerMap.get(name) || 0) + 1);
+  }
+  const ownerColors = [
+    cssVar("--brand"),
+    "#8B5CF6",
+    cssVar("--ok"),
+    cssVar("--warn"),
+    "#2DD4BF",
+    "#F472B6"
+  ];
+  const ownerItems = Array.from(ownerMap.entries())
+    .sort((a,b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([name, n], i) => ({ label: name, value: n, color: ownerColors[i % ownerColors.length] }));
+
+  const scopeLabel = yearFilter === "all" ? "all time" : yearFilter;
+
+  host.innerHTML = `
+    <div class="chart-card">
+      <h3 class="chart-title"><span class="dot" style="background:${cssVar("--brand")}"></span>Tickets by priority · ${esc(scopeLabel)}</h3>
+      <div class="chart-body">
+        ${ prioTotal > 0
+            ? buildDonut(prioSegs, prioTotal) + buildLegend(prioSegs, prioTotal)
+            : `<div class="chart-empty">No tickets in scope</div>` }
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3 class="chart-title"><span class="dot" style="background:${cssVar("--ok")}"></span>Tickets by status · ${esc(scopeLabel)}</h3>
+      <div class="chart-body">
+        ${ statTotal > 0
+            ? buildDonut(statSegs, statTotal) + buildLegend(statSegs, statTotal)
+            : `<div class="chart-empty">No tickets in scope</div>` }
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3 class="chart-title"><span class="dot" style="background:${cssVar("--accent")}"></span>Workload by owner · ${esc(scopeLabel)}</h3>
+      <div class="chart-body">
+        ${ ownerItems.length ? buildHBars(ownerItems, scoped.length) : `<div class="chart-empty">No tickets in scope</div>` }
+      </div>
+    </div>
+  `;
+}
+
+/* ──── Drawer ──── */
+function openDrawer(id){
+  const t = id ? tickets.find(x => x.id === id) : null;
+  editingId = t ? t.id : null;
+
+  document.getElementById("drawer-title").innerHTML = t
+    ? `<span style="color:var(--ink-3)">${esc(t.id)}</span>${NBSP}${NBSP}<span style="opacity:0.5">·</span>${NBSP}${NBSP}<span style="color:var(--ink)">Edit ticket</span>`
+    : `<span style="color:var(--brand)">${esc(nextId())}</span>${NBSP}${NBSP}<span style="opacity:0.5">·</span>${NBSP}${NBSP}<span style="color:var(--ink)">New ticket</span>`;
+
+  const g = k => document.getElementById("f-" + k);
+  g("description").value = t?.description || "";
+  g("date").value        = t?.date || new Date().toISOString().slice(0,10);
+  g("status").value      = t?.status || "Open";
+  g("priority").value    = t?.priority || "Medium";
+  g("owner").value       = t?.owner || "";
+  g("time").value        = t?.time || "";
+  g("impact").value      = t?.impact || "";
+  g("actions").value     = t?.actions || "";
+  g("notes").value       = t?.notes || "";
+  g("loggedBy").value    = t?.loggedBy || "Chirt";
+  g("resolvedBy").value  = t?.resolvedBy || "";
+
+  const metaBar = document.getElementById("meta-bar");
+  if(t){
+    metaBar.innerHTML = `
+      <span class="chip ${statusKey(t.status)}">${esc(t.status || "Open")}</span>
+      <span class="chip ${priorityKey(t.priority)}">${esc(t.priority || "Medium")}</span>
+      <span style="color:var(--ink-3); font-family:var(--font-mono); font-size:11px">${esc(fmtDate(t.date))}</span>
+      <span style="color:var(--ink-3); font-family:var(--font-mono); font-size:11px">·</span>
+      <span style="color:var(--ink-3); font-family:var(--font-mono); font-size:11px">${esc(fmtTime(t.time))}</span>
+    `;
+    metaBar.style.display = "flex";
+  } else {
+    metaBar.style.display = "none";
+  }
+
+  document.getElementById("delete-btn").style.display = t ? "inline-flex" : "none";
+  document.getElementById("scrim").classList.add("open");
+  document.getElementById("drawer").classList.add("open");
+  document.getElementById("drawer").setAttribute("aria-hidden", "false");
+  setTimeout(() => document.getElementById("f-description").focus(), 220);
+}
+
+function closeDrawer(){
+  document.getElementById("scrim").classList.remove("open");
+  document.getElementById("drawer").classList.remove("open");
+  document.getElementById("drawer").setAttribute("aria-hidden", "true");
+  editingId = null;
+}
+
+function saveTicket(){
+  const g = k => document.getElementById("f-" + k).value.trim();
+  const description = g("description");
+  if(!description){ toast("Issue description is required", "err"); return; }
+
+  const rec = {
+    id: editingId || nextId(),
+    date: g("date"),
+    status: g("status"),
+    priority: g("priority"),
+    description,
+    owner: g("owner"),
+    impact: g("impact"),
+    actions: g("actions"),
+    notes: g("notes"),
+    loggedBy: g("loggedBy"),
+    resolvedBy: g("resolvedBy"),
+    time: g("time") ? Number(g("time")) : ""
+  };
+
+  if(editingId){
+    const i = tickets.findIndex(x => x.id === editingId);
+    if(i >= 0) tickets[i] = rec; else tickets.push(rec);
+    toast(`Saved ${rec.id}`, "ok");
+  } else {
+    tickets.unshift(rec);
+    toast(`Created ${rec.id}`, "ok");
+  }
+  persist();
+  closeDrawer();
+  renderAll();
+}
+
+function deleteTicket(){
+  if(!editingId) return;
+  const id = editingId;
+  confirmDialog("Delete ticket?", `${id} will be permanently removed. This can't be undone.`, () => {
+    tickets = tickets.filter(x => x.id !== id);
+    persist();
+    closeDrawer();
+    renderAll();
+    toast(`${id} deleted`, "ok");
+  });
+}
+
+/* ──── Confirm dialog ──── */
+let confirmCb = null;
+function confirmDialog(title, msg, cb){
+  document.getElementById("confirm-title").textContent = title;
+  document.getElementById("confirm-msg").textContent = msg;
+  confirmCb = cb;
+  document.getElementById("confirm-scrim").classList.add("open");
+}
+function closeConfirm(ok){
+  document.getElementById("confirm-scrim").classList.remove("open");
+  if(ok && confirmCb) confirmCb();
+  confirmCb = null;
+}
+
+/* ──── Toast ──── */
+let toastTimer = 0;
+function toast(msg, kind){
+  const el = document.getElementById("toast");
+  document.getElementById("toast-msg").textContent = msg;
+  el.className = "toast show " + (kind || "");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+}
+
+/* ──── Import / Export ──── */
+/* ──── Backup / Restore ──── */
+const LAST_BACKUP_KEY = "topcoat_last_backup";
+const BACKUP_STALE_DAYS = 14;
+
+function daysSinceBackup(){
+  const ts = parseInt(localStorage.getItem(LAST_BACKUP_KEY) || "0", 10);
+  if(!ts) return Infinity;
+  return (Date.now() - ts) / 86400000;
+}
+
+function updateBackupUi(){
+  const age = daysSinceBackup();
+  const ageEl = document.getElementById("backup-age");
+  const menuBtn = document.getElementById("menu-btn");
+  if(!ageEl || !menuBtn) return;
+  let label;
+  if(age === Infinity) label = "never";
+  else if(age < 1)     label = "today";
+  else if(age < 2)     label = "1d ago";
+  else                 label = `${Math.round(age)}d ago`;
+  ageEl.textContent = label;
+  ageEl.classList.toggle("stale", age >= BACKUP_STALE_DAYS);
+  menuBtn.classList.toggle("has-alert", age >= BACKUP_STALE_DAYS && tickets.length > 0);
+}
+
+function backupNow(){
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  const bundle = {
+    kind: "topcoat-tickets-backup",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    ticketCount: tickets.length,
+    tickets: tickets,
+    settings: {
+      theme: localStorage.getItem(THEME_KEY) || "dark",
+      weeklyMode: weeklyMode
+    }
+  };
+  download(`topcoat-tickets-backup-${stamp}.json`, "application/json", JSON.stringify(bundle, null, 2));
+  try { localStorage.setItem(LAST_BACKUP_KEY, Date.now().toString()); } catch {}
+  toast(`Backup downloaded · ${tickets.length} ticket${tickets.length===1?"":"s"}`, "ok");
+  updateBackupUi();
+}
+
+function restoreBackup(file){
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const data = JSON.parse(r.result);
+      let imported = null, importedSettings = null, exportedAt = null;
+      if(Array.isArray(data)){
+        // Legacy plain-array export
+        imported = data;
+      } else if(data && Array.isArray(data.tickets)){
+        // New bundle format
+        imported = data.tickets;
+        importedSettings = data.settings || null;
+        exportedAt = data.exportedAt || null;
+      } else {
+        throw new Error("Not a valid backup file (expected a Top Coat tickets JSON).");
+      }
+      const normalized = imported.map(normalizeRow).filter(t => (t.description || "").trim());
+      const stampNote = exportedAt ? ` from ${new Date(exportedAt).toLocaleString()}` : "";
+      const settingsNote = importedSettings ? " and settings" : "";
+      const scopeWarn = mode === "online"
+        ? " This will also overwrite the SharePoint copy that the whole team sees."
+        : "";
+      confirmDialog(
+        "Restore from backup?",
+        `${normalized.length} ticket${normalized.length===1?"":"s"}${settingsNote}${stampNote} will replace the current ${tickets.length}.${scopeWarn} This can't be undone.`,
+        () => {
+          tickets = normalized;
+          if(importedSettings){
+            if(importedSettings.theme && (importedSettings.theme === "dark" || importedSettings.theme === "light")){
+              document.body.setAttribute("data-theme", importedSettings.theme);
+              try { localStorage.setItem(THEME_KEY, importedSettings.theme); } catch {}
+              const lbl = document.getElementById("theme-label");
+              if(lbl) lbl.textContent = importedSettings.theme === "dark" ? "Light theme" : "Dark theme";
+            }
+            if(importedSettings.weeklyMode && (importedSettings.weeklyMode === "active" || importedSettings.weeklyMode === "last7")){
+              weeklyMode = importedSettings.weeklyMode;
+              try { localStorage.setItem("topcoat_weekly_mode", weeklyMode); } catch {}
+            }
+          }
+          persist();
+          renderAll();
+          toast(`Restored ${tickets.length} ticket${tickets.length===1?"":"s"}`, "ok");
+        }
+      );
+    } catch(e){
+      toast("Restore failed: " + e.message, "err");
+      console.error(e);
+    }
+  };
+  r.readAsText(file);
+}
+
+function download(name, mime, text){
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 500);
+}
+function exportCsv(){
+  const cols = ["id","date","status","priority","description","owner","impact","actions","notes","loggedBy","resolvedBy","time"];
+  const head = ["ID","Date","Status","Priority","Description","Owner","Impact","Actions","Notes","Logged By","Resolved By","Time (min)"];
+  const cell = v => {
+    v = v == null ? "" : String(v);
+    return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  };
+  const lines = [head.join(",")].concat(tickets.map(t => cols.map(c => cell(t[c])).join(",")));
+  download(`topcoat-tickets-${new Date().toISOString().slice(0,10)}.csv`, "text/csv", lines.join("\n"));
+  toast(`Exported ${tickets.length} ticket${tickets.length===1?"":"s"}`, "ok");
+}
+
+function importXlsx(file){
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const data = new Uint8Array(r.result);
+      const wb = XLSX.read(data, { type: "array" });
+      // Prefer 'Issue-Log' sheet, else first sheet
+      const sheetName = wb.SheetNames.find(n => /issue.?log|work.?log|tickets/i.test(n)) || wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval:"", header:1, blankrows:false });
+      if(!rows.length) throw new Error(`Sheet "${sheetName}" is empty`);
+
+      // Find header row (the one with at least 3 of our known keywords)
+      const knownHeaders = /^(id|ticket|#)|^date|^status|^priority|^issue|^description|^owner|^assigned|^impact|^action|^notes|^logged|^resolved|^time|^minutes|^duration/i;
+      let headerIdx = 0, headers = rows[0];
+      for(let i = 0; i < Math.min(rows.length, 5); i++){
+        const hits = rows[i].filter(c => knownHeaders.test(String(c || "").trim())).length;
+        if(hits >= 3){ headerIdx = i; headers = rows[i]; break; }
+      }
+      const cols = headers.map(h => headerName(String(h || "")));
+
+      const out = [];
+      for(let i = headerIdx + 1; i < rows.length; i++){
+        const row = rows[i];
+        if(!row || row.every(c => c === "" || c == null)) continue;
+        const rec = {};
+        cols.forEach((k, j) => { if(k) rec[k] = row[j]; });
+        const norm = normalizeRow(rec);
+        if((norm.description || "").trim()) out.push(norm);
+      }
+
+      confirmDialog(
+        "Replace all tickets?",
+        `Found ${out.length} row${out.length===1?"":"s"} in sheet "${sheetName}". This will replace the current ${tickets.length}. Export a backup first if you want a safety net.`,
+        () => { tickets = out; persist(); renderAll(); toast(`Imported ${tickets.length} ticket${tickets.length===1?"":"s"} from ${sheetName}`, "ok"); }
+      );
+    }catch(e){ toast("Import failed: " + e.message, "err"); console.error(e); }
+  };
+  r.readAsArrayBuffer(file);
+}
+
+// Map any reasonable header to our canonical key
+function headerName(h){
+  const s = String(h || "").toLowerCase().trim();
+  if(!s) return null;
+  if(/^(id|ticket(\s*(id|#|no))?|#|ref)/.test(s)) return "id";
+  if(/^date|when|opened/.test(s)) return "date";
+  if(/^status|state/.test(s)) return "status";
+  if(/^prio|priority|severity/.test(s)) return "priority";
+  if(/^(issue|description|desc|problem|summary|title)/.test(s)) return "description";
+  if(/^(owner|assigned|assignee|tech)/.test(s)) return "owner";
+  if(/^impact|affected|scope/.test(s)) return "impact";
+  if(/^(action|steps|work\s*done|resolution\s*steps)/.test(s)) return "actions";
+  if(/^(note|comments?|remarks)/.test(s)) return "notes";
+  if(/^(logged|reported|created)/.test(s)) return "loggedBy";
+  if(/^(resolved|closed)\s*by/.test(s)) return "resolvedBy";
+  if(/^(time|minutes|duration|elapsed)/.test(s)) return "time";
+  return null;
+}
+
+function normalizeRow(rec){
+  const out = {
+    id:          rec.id != null ? String(rec.id).trim() : "",
+    date:        normDate(rec.date),
+    status:      normStatus(rec.status),
+    priority:    normPriority(rec.priority),
+    description: (rec.description || "").toString().trim(),
+    owner:       (rec.owner || "").toString().trim(),
+    impact:      (rec.impact || "").toString().trim(),
+    actions:     (rec.actions || "").toString().trim(),
+    notes:       (rec.notes || "").toString().trim(),
+    loggedBy:    (rec.loggedBy || "").toString().trim(),
+    resolvedBy:  (rec.resolvedBy || "").toString().trim(),
+    time:        normTime(rec.time)
+  };
+  if(!out.id) out.id = ""; // will get one on save
+  return out;
+}
+function normDate(v){
+  if(v == null || v === "") return "";
+  if(v instanceof Date) return v.toISOString().slice(0,10);
+  if(typeof v === "number"){
+    // Excel serial date
+    const utcDays = v - 25569;
+    const utcValue = utcDays * 86400;
+    const d = new Date(utcValue * 1000);
+    return d.toISOString().slice(0,10);
+  }
+  const s = String(v).trim();
+  const d = new Date(s);
+  if(!isNaN(d)) return d.toISOString().slice(0,10);
+  return s;
+}
+function normStatus(v){
+  const s = String(v || "").trim().toLowerCase();
+  if(!s) return "Open";
+  if(/progress|working|wip/.test(s)) return "In Progress";
+  if(/block|wait|hold|pending/.test(s)) return "Blocked";
+  if(/closed|resolved|done|complete/.test(s)) return "Closed";
+  if(/open|new/.test(s)) return "Open";
+  return v.toString().trim();
+}
+function normPriority(v){
+  const s = String(v || "").trim().toLowerCase();
+  if(!s) return "Medium";
+  if(/crit|urgent|p0|p1/.test(s)) return "Critical";
+  if(/high|p2/.test(s)) return "High";
+  if(/med|p3|normal/.test(s)) return "Medium";
+  if(/low|p4|minor/.test(s)) return "Low";
+  return v.toString().trim();
+}
+function normTime(v){
+  if(v == null || v === "") return "";
+  const n = Number(v);
+  if(!isNaN(n)) return n;
+  const s = String(v).trim();
+  const m = s.match(/^(\d+(?:\.\d+)?)\s*h/i);
+  if(m) return Math.round(parseFloat(m[1]) * 60);
+  return s;
+}
+
+/* ──── Wire up UI ──── */
+document.addEventListener("DOMContentLoaded", async () => {
+  initTheme();
+
+  // Kbd hint (mac vs windows)
+  const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+  document.getElementById("kbd").textContent = isMac ? "⌘K" : "Ctrl K";
+
+  // Copy the header logo into the sign-in card so we don't duplicate the base64 blob
+  const headerLogo = document.querySelector(".logo-badge img");
+  const signinLogo = document.getElementById("signin-logo-img");
+  if(headerLogo && signinLogo) signinLogo.src = headerLogo.src;
+
+  // Wire the sign-in overlay buttons
+  document.getElementById("signin-btn").addEventListener("click", doSignIn);
+  document.getElementById("continue-offline").addEventListener("click", async () => {
+    localStorage.setItem(OFFLINE_KEY, "1");
+    mode = "offline";
+    hideSignIn();
+    await loadTickets();
+    renderAll();
+    updateAuthMenuItems();
+  });
+
+  // Clicking the offline sync-status pill offers a fast path to sign in
+  document.getElementById("sync").addEventListener("click", () => {
+    if(document.getElementById("sync").getAttribute("data-s") === "offline") doSignIn();
+  });
+
+  // Initialize MSAL and figure out where to go
+  const isFileProto = window.location.protocol === "file:";
+  if(!isFileProto){
+    try { await initAuth(); }
+    catch(e){ console.warn("MSAL init failed:", e.message); }
+  }
+
+  const forceOffline = localStorage.getItem(OFFLINE_KEY) === "1";
+
+  if(msalAccount && !forceOffline){
+    mode = "online";
+    hideSignIn();
+    await loadTickets();
+    renderAll();
+  } else if(forceOffline || isFileProto){
+    mode = "offline";
+    hideSignIn();
+    await loadTickets();
+    renderAll();
+  } else {
+    // Not signed in and haven't chosen offline — prompt
+    showSignIn();
+    // Render nothing yet; the overlay covers the app
+    renderAll();
+  }
+  updateAuthMenuItems();
+
+  // Search
+  const q = document.getElementById("q");
+  q.addEventListener("input", () => { query = q.value; renderAll(); });
+
+  // Weekly-mode toggle inside the stats row (event-delegated because #stats re-renders)
+  document.getElementById("stats").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-wk-mode]");
+    if(!btn) return;
+    const next = btn.dataset.wkMode;
+    if(next === weeklyMode) return;
+    weeklyMode = next;
+    try { localStorage.setItem("topcoat_weekly_mode", weeklyMode); } catch {}
+    renderStats();
+  });
+
+  // Filters (event delegation — works for dynamically added year pills)
+  document.querySelector(".toolbar").addEventListener("click", (e) => {
+    const p = e.target.closest(".pill");
+    if(!p) return;
+    const dim = p.dataset.filter;
+    const val = p.dataset.value;
+    if(!dim) return;
+    // For static pill groups (status, priority), toggle the active class here.
+    // Year pills get their active state rebuilt inside renderYearFilters().
+    if(dim !== "year"){
+      document.querySelectorAll(`.pill[data-filter="${dim}"]`).forEach(x => x.classList.remove("active"));
+      p.classList.add("active");
+    }
+    if(dim === "status") statusFilter = val;
+    else if(dim === "priority") priorityFilter = val;
+    else if(dim === "year") yearFilter = val;
+    renderAll();
+  });
+
+  // Sort headers
+  document.querySelectorAll("#tbl thead th").forEach(th => {
+    th.addEventListener("click", () => {
+      const key = th.dataset.sort;
+      if(sortKey === key) sortDir = sortDir === "asc" ? "desc" : "asc";
+      else { sortKey = key; sortDir = key === "priority" || key === "time" || key === "date" ? "desc" : "asc"; }
+      renderList();
+    });
+  });
+
+  // View toggle
+  document.getElementById("view-list").addEventListener("click", () => setView("list"));
+  document.getElementById("view-board").addEventListener("click", () => setView("board"));
+
+  // New / drawer buttons
+  document.getElementById("new-btn").addEventListener("click", () => openDrawer(null));
+  document.getElementById("close-drawer").addEventListener("click", closeDrawer);
+  document.getElementById("scrim").addEventListener("click", closeDrawer);
+  document.getElementById("cancel-btn").addEventListener("click", closeDrawer);
+  document.getElementById("save-btn").addEventListener("click", saveTicket);
+  document.getElementById("delete-btn").addEventListener("click", deleteTicket);
+
+  // Menu
+  const menuBtn = document.getElementById("menu-btn");
+  const menu = document.getElementById("menu");
+  menuBtn.addEventListener("click", (e) => { e.stopPropagation(); menu.classList.toggle("open"); });
+  document.addEventListener("click", (e) => { if(!menu.contains(e.target) && e.target !== menuBtn) menu.classList.remove("open"); });
+  menu.querySelectorAll("button[data-act]").forEach(b => {
+    b.addEventListener("click", () => {
+      menu.classList.remove("open");
+      const act = b.dataset.act;
+      if(act === "backup") backupNow();
+      else if(act === "restore") document.getElementById("fi-json").click();
+      else if(act === "export-csv") exportCsv();
+      else if(act === "import-xlsx") document.getElementById("fi-xlsx").click();
+      else if(act === "signin") doSignIn();
+      else if(act === "signout") doSignOut();
+      else if(act === "toggle-theme") toggleTheme();
+      else if(act === "clear"){
+        const scope = mode === "online" ? "SharePoint and local cache" : "local storage";
+        confirmDialog("Clear all tickets?", `All ${tickets.length} tickets will be removed from ${scope}. Export a backup first if you want a safety net.`, () => {
+          tickets = []; persist(); renderAll(); toast("All tickets cleared", "ok");
+        });
+      }
+    });
+  });
+
+  // File inputs
+  document.getElementById("fi-json").addEventListener("change", e => { if(e.target.files[0]) restoreBackup(e.target.files[0]); e.target.value = ""; });
+  document.getElementById("fi-xlsx").addEventListener("change", e => { if(e.target.files[0]) importXlsx(e.target.files[0]); e.target.value = ""; });
+
+  // Confirm dialog
+  document.getElementById("confirm-yes").addEventListener("click", () => closeConfirm(true));
+  document.getElementById("confirm-no").addEventListener("click", () => closeConfirm(false));
+
+  // Keyboard
+  document.addEventListener("keydown", (e) => {
+    if((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k"){ e.preventDefault(); q.focus(); q.select(); }
+    else if(e.key === "Escape"){
+      if(document.getElementById("confirm-scrim").classList.contains("open")) closeConfirm(false);
+      else if(document.getElementById("drawer").classList.contains("open")) closeDrawer();
+      else if(document.activeElement === q){ q.value = ""; query = ""; renderAll(); q.blur(); }
+    }
+    else if((e.key === "n" || e.key === "N") && !e.metaKey && !e.ctrlKey && !e.altKey){
+      const tag = (document.activeElement.tagName || "").toLowerCase();
+      if(tag === "input" || tag === "textarea" || tag === "select") return;
+      if(document.getElementById("drawer").classList.contains("open")) return;
+      e.preventDefault();
+      openDrawer(null);
+    }
+  });
+});
+
+function setView(v){
+  currentView = v;
+  document.getElementById("view-list").classList.toggle("on", v === "list");
+  document.getElementById("view-board").classList.toggle("on", v === "board");
+  document.getElementById("view-list").setAttribute("aria-pressed", v === "list");
+  document.getElementById("view-board").setAttribute("aria-pressed", v === "board");
+  document.getElementById("view-list-wrap").classList.toggle("hidden", v !== "list");
+  document.getElementById("view-board-wrap").classList.toggle("hidden", v !== "board");
+  renderAll();
+}
+</script>
+</body>
+</html>
