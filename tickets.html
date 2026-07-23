@@ -2318,6 +2318,9 @@ function saveTicket(){
   const description = g("description");
   if(!description){ toast("Issue description is required", "err"); return; }
 
+  // Get current ticket to preserve images
+  const currentTicket = editingId ? tickets.find(t => t.id === editingId) : null;
+
   const rec = {
     id: editingId || nextId(),
     date: g("date"),
@@ -2330,7 +2333,8 @@ function saveTicket(){
     notes: g("notes"),
     loggedBy: g("loggedBy"),
     resolvedBy: g("resolvedBy"),
-    time: g("time") ? Number(g("time")) : ""
+    time: g("time") ? Number(g("time")) : "",
+    images: currentTicket?.images || [] // Preserve images from current ticket
   };
 
   if(editingId){
