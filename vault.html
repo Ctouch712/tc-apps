@@ -623,6 +623,13 @@
     renderLog();
   }
 
+  function describeAuthError(e){
+    const code = e && (e.errorCode || e.name) || "unknown_error";
+    const msg = e && (e.errorMessage || e.message) || String(e);
+    console.error("Top Coat Vault auth error:", e);
+    return `Sign-in failed (${code}). ${msg}`.slice(0,220);
+  }
+
   async function initAuth(){
     if(typeof msal === "undefined"){
       showLoginPanel("Couldn't load the Microsoft sign-in library. Check your internet connection and reload.", true);
@@ -634,7 +641,7 @@
       const resp = await msalInstance.handleRedirectPromise();
       if(resp && resp.account) msalInstance.setActiveAccount(resp.account);
     } catch(e){
-      showLoginPanel("Sign-in didn't complete. Please try again.", true);
+      showLoginPanel(describeAuthError(e), true);
       return;
     }
     const accounts = msalInstance.getAllAccounts();
@@ -665,7 +672,7 @@
         await msalInstance.loginRedirect(loginRequest);
       }
     } catch(e){
-      showLoginPanel("Sign-in failed. Please try again.", true);
+      showLoginPanel(describeAuthError(e), true);
     }
   }
   async function doSignOut(){
