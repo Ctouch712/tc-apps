@@ -410,6 +410,77 @@ body{
 .wk-mode:hover{ color:var(--ink) }
 .wk-mode.on{ background:var(--panel); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,0.15) }
 
+/* Workload filter toggle */
+.workload-filter{
+  display:inline-flex; gap:1px;
+  background:var(--panel-hi); border-radius:6px; padding:2px;
+  border:1px solid var(--line-soft);
+  margin-left:auto;
+  flex:none;
+}
+.wl-mode{
+  font-family:var(--font-mono); font-size:9.5px; font-weight:600;
+  padding:2px 6px; border:none; background:transparent;
+  color:var(--ink-3); cursor:pointer; border-radius:4px;
+  letter-spacing:0.06em; text-transform:uppercase;
+  line-height:1.2;
+  transition:background .12s, color .12s;
+}
+.wl-mode:hover{ color:var(--ink) }
+.wl-mode.on{ background:var(--panel); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,0.15) }
+
+/* Image upload UI */
+.image-upload-zone{
+  border:2px dashed var(--line-soft); border-radius:8px; padding:12px;
+  background:color-mix(in oklab, var(--brand) 3%, transparent);
+  cursor:pointer; transition:all .2s;
+  text-align:center; color:var(--ink-4); font-size:13px;
+}
+.image-upload-zone:hover{
+  border-color:var(--brand); background:color-mix(in oklab, var(--brand) 6%, transparent);
+  color:var(--ink-3);
+}
+.image-upload-zone.loading{
+  opacity:0.6; cursor:not-allowed;
+}
+#fi-image{ display:none }
+.image-thumbs{
+  display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;
+}
+.image-thumb{
+  position:relative; width:60px; height:60px;
+  border-radius:4px; overflow:hidden; background:var(--panel-hi);
+  cursor:pointer; border:1px solid var(--line-soft);
+  transition:transform .15s, box-shadow .15s;
+}
+.image-thumb:hover{ transform:scale(1.05); box-shadow:0 2px 8px rgba(0,0,0,0.2) }
+.image-thumb img{ width:100%; height:100%; object-fit:cover }
+.image-thumb .remove{
+  position:absolute; top:0; right:0; width:20px; height:20px;
+  background:var(--danger); color:white; border:none; cursor:pointer;
+  font-size:12px; line-height:20px; padding:0;
+  opacity:0; transition:opacity .15s;
+}
+.image-thumb:hover .remove{ opacity:1 }
+
+/* Lightbox for full-size images */
+.lightbox{
+  display:none; position:fixed; top:0; left:0; right:0; bottom:0;
+  background:rgba(0,0,0,0.9); z-index:9999;
+  align-items:center; justify-content:center;
+}
+.lightbox.show{ display:flex }
+.lightbox-content{
+  position:relative; max-width:90%; max-height:90%;
+}
+.lightbox-img{ max-width:100%; max-height:100%; border-radius:4px }
+.lightbox-close{
+  position:absolute; top:-30px; right:0;
+  background:none; border:none; color:white; font-size:24px;
+  cursor:pointer; padding:0; width:30px; height:30px;
+}
+.lightbox-close:hover{ color:#ccc }
+
 /* ─────── Sync status indicator ─────── */
 .sync-status{
   display:inline-flex; align-items:center; gap:8px;
@@ -1189,6 +1260,10 @@ td.c-time{font-family:var(--font-mono); color:var(--ink-2); text-align:right; fo
       <div class="field">
         <label for="f-owner">Owner</label>
         <input id="f-owner" type="text" list="owners" placeholder="Who's on it?">
+        <label>Images</label>
+        <div class="image-upload-zone" id="upload-zone">Click to upload or drag images</div>
+        <div class="image-thumbs" id="image-thumbs"></div>
+        <input id="fi-image" type="file" accept="image/*" multiple>
       </div>
       <div class="field">
         <label for="f-time">Time (minutes)</label>
@@ -1282,6 +1357,14 @@ td.c-time{font-family:var(--font-mono); color:var(--ink-2); text-align:right; fo
 <!-- ─────── Hidden import inputs ─────── -->
 <input type="file" id="fi-json" accept=".json,application/json" class="hidden">
 <input type="file" id="fi-xlsx" accept=".xlsx,.xlsm,.xls" class="hidden">
+
+<!-- ─────── Image lightbox ─────── -->
+<div class="lightbox" id="lightbox">
+  <div class="lightbox-content">
+    <button class="lightbox-close" id="lightbox-close">&times;</button>
+    <img id="lightbox-img" class="lightbox-img">
+  </div>
+</div>
 
 <script>
 /* ────────────────────────────────────────────────────────────
@@ -1534,6 +1617,7 @@ let sortDir = "desc";
 let editingId = null;
 let currentView = "list";
 let weeklyMode = localStorage.getItem("topcoat_weekly_mode") || "active"; // "active" | "last7"
+let workloadFilter = localStorage.getItem("topcoat_workload_filter") || "me"; // "me" | "all"
 
 /* ──── Storage ──── */
 async function loadTickets(){
@@ -2119,9 +2203,11 @@ function renderCharts(){
   const statTotal = statSegs.reduce((a,s) => a + s.value, 0);
 
   // Workload by owner (top 6 by ticket count in scope)
+  // Filter based on workloadFilter: "me" (just Chirt) or "all" (everyone)
   const ownerMap = new Map();
   for(const t of scoped){
     const name = (t.owner || "").trim() || "Unassigned";
+    if(workloadFilter === "me" && name !== "Chirt") continue;
     ownerMap.set(name, (ownerMap.get(name) || 0) + 1);
   }
   const ownerColors = [
@@ -2136,6 +2222,13 @@ function renderCharts(){
     .sort((a,b) => b[1] - a[1])
     .slice(0, 6)
     .map(([name, n], i) => ({ label: name, value: n, color: ownerColors[i % ownerColors.length] }));
+
+  const workloadToggle = `
+    <div class="workload-filter" role="tablist" aria-label="Workload view">
+      <button class="wl-mode ${workloadFilter === 'me' ? 'on' : ''}" data-wl-mode="me" title="Show only my tickets">Just me</button>
+      <button class="wl-mode ${workloadFilter === 'all' ? 'on' : ''}" data-wl-mode="all" title="Show all team members">All</button>
+    </div>
+  `;
 
   const scopeLabel = yearFilter === "all" ? "all time" : yearFilter;
 
@@ -2159,7 +2252,7 @@ function renderCharts(){
     </div>
 
     <div class="chart-card">
-      <h3 class="chart-title"><span class="dot" style="background:${cssVar("--accent")}"></span>Workload by owner · ${esc(scopeLabel)}</h3>
+      <h3 class="chart-title"><span class="dot" style="background:${cssVar("--accent")}"></span>Workload<span style="color:var(--ink-4); font-weight:400; margin-left:4px">by owner · ${esc(scopeLabel)}</span>${workloadToggle}</h3>
       <div class="chart-body">
         ${ ownerItems.length ? buildHBars(ownerItems, scoped.length) : `<div class="chart-empty">No tickets in scope</div>` }
       </div>
@@ -2188,6 +2281,9 @@ function openDrawer(id){
   g("notes").value       = t?.notes || "";
   g("loggedBy").value    = t?.loggedBy || "Chirt";
   g("resolvedBy").value  = t?.resolvedBy || "";
+
+  // Show image thumbnails
+  showImageThumbnails(t?.images || []);
 
   const metaBar = document.getElementById("meta-bar");
   if(t){
@@ -2384,6 +2480,143 @@ function restoreBackup(file){
   r.readAsText(file);
 }
 
+/* ──── Image Upload to SharePoint ──── */
+async function uploadImageToSharePoint(file){
+  if(!msalAccount || !msalApp) throw new Error("Not signed in");
+  const token = await getToken();
+  
+  // Generate unique filename
+  const ext = file.name.split('.').pop();
+  const name = `ticket-img-${Date.now()}.${ext}`;
+  const folderPath = `/Leadership Team/IT/Images`;
+  
+  try {
+    // Create folder if needed (POST to create)
+    const folderUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/root:${folderPath}`;
+    
+    // Upload file: PUT /drives/{driveId}/root:/{path to file}:/content
+    const uploadUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/root:${folderPath}/${name}:/content`;
+    
+    const resp = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': file.type },
+      body: file
+    });
+    
+    if(!resp.ok) throw new Error(`Upload failed: ${resp.status}`);
+    const data = await resp.json();
+    return {
+      name: file.name,
+      url: data.webUrl,
+      uploadedAt: new Date().toISOString(),
+      spId: data.id
+    };
+  } catch(e){
+    throw new Error("Image upload failed: " + e.message);
+  }
+}
+
+function showImageThumbnails(images){
+  const container = document.getElementById("image-thumbs");
+  if(!images || !images.length){
+    container.innerHTML = "";
+    return;
+  }
+  container.innerHTML = images.map((img, i) => `
+    <div class="image-thumb" title="${esc(img.name)}">
+      <img src="${esc(img.url)}" alt="ticket image" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Crect fill=%22%23ccc%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2212%22 fill=%22%23666%22%3EImage%3C/text%3E%3C/svg%3E'">
+      <button class="remove" type="button" data-img-idx="${i}">×</button>
+    </div>
+  `).join("");
+  
+  // Wire remove buttons
+  container.querySelectorAll(".remove").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const idx = parseInt(btn.dataset.imgIdx);
+      if(editingId){
+        const ticket = tickets.find(t => t.id === editingId);
+        if(ticket && ticket.images){
+          ticket.images.splice(idx, 1);
+          showImageThumbnails(ticket.images);
+        }
+      }
+    });
+  });
+  
+  // Wire image clicks for lightbox
+  container.querySelectorAll(".image-thumb img").forEach(img => {
+    img.addEventListener("click", () => {
+      document.getElementById("lightbox-img").src = img.src;
+      document.getElementById("lightbox").classList.add("show");
+    });
+  });
+}
+
+function setupImageUpload(){
+  const zone = document.getElementById("upload-zone");
+  const input = document.getElementById("fi-image");
+  
+  zone.addEventListener("click", () => input.click());
+  
+  // Drag-drop
+  zone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    zone.classList.add("loading");
+  });
+  zone.addEventListener("dragleave", () => {
+    zone.classList.remove("loading");
+  });
+  zone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    zone.classList.remove("loading");
+    if(e.dataTransfer.files.length) handleImageFiles(e.dataTransfer.files);
+  });
+  
+  // File input
+  input.addEventListener("change", () => {
+    if(input.files.length) handleImageFiles(input.files);
+    input.value = "";
+  });
+  
+  // Lightbox close
+  document.getElementById("lightbox-close").addEventListener("click", () => {
+    document.getElementById("lightbox").classList.remove("show");
+  });
+  document.getElementById("lightbox").addEventListener("click", (e) => {
+    if(e.target.id === "lightbox") document.getElementById("lightbox").classList.remove("show");
+  });
+}
+
+async function handleImageFiles(files){
+  if(!editingId){
+    toast("Create or edit a ticket first", "err");
+    return;
+  }
+  
+  const ticket = tickets.find(t => t.id === editingId);
+  if(!ticket) return;
+  
+  const zone = document.getElementById("upload-zone");
+  zone.classList.add("loading");
+  zone.textContent = `Uploading ${files.length} image${files.length===1?"":"s"}...`;
+  
+  for(const file of files){
+    try {
+      const imgData = await uploadImageToSharePoint(file);
+      if(!ticket.images) ticket.images = [];
+      ticket.images.push(imgData);
+    } catch(e){
+      toast(`Failed to upload ${file.name}: ${e.message}`, "err");
+    }
+  }
+  
+  zone.classList.remove("loading");
+  zone.textContent = "Click to upload or drag images";
+  showImageThumbnails(ticket.images);
+  persist();
+}
+
 function download(name, mime, text){
   const blob = new Blob([text], { type: mime });
   const url = URL.createObjectURL(blob);
@@ -2476,7 +2709,8 @@ function normalizeRow(rec){
     notes:       (rec.notes || "").toString().trim(),
     loggedBy:    (rec.loggedBy || "").toString().trim(),
     resolvedBy:  (rec.resolvedBy || "").toString().trim(),
-    time:        normTime(rec.time)
+    time:        normTime(rec.time),
+    images:      Array.isArray(rec.images) ? rec.images : []
   };
   if(!out.id) out.id = ""; // will get one on save
   return out;
@@ -2595,6 +2829,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderStats();
   });
 
+  // Workload filter toggle inside the charts row (event-delegated because #charts re-renders)
+  document.getElementById("charts").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-wl-mode]");
+    if(!btn) return;
+    const next = btn.dataset.wlMode;
+    if(next === workloadFilter) return;
+    workloadFilter = next;
+    try { localStorage.setItem("topcoat_workload_filter", workloadFilter); } catch {}
+    renderCharts();
+  });
+
   // Filters (event delegation — works for dynamically added year pills)
   document.querySelector(".toolbar").addEventListener("click", (e) => {
     const p = e.target.closest(".pill");
@@ -2664,6 +2909,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   // File inputs
   document.getElementById("fi-json").addEventListener("change", e => { if(e.target.files[0]) restoreBackup(e.target.files[0]); e.target.value = ""; });
   document.getElementById("fi-xlsx").addEventListener("change", e => { if(e.target.files[0]) importXlsx(e.target.files[0]); e.target.value = ""; });
+
+  // Image upload
+  setupImageUpload();
 
   // Confirm dialog
   document.getElementById("confirm-yes").addEventListener("click", () => closeConfirm(true));
