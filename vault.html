@@ -305,6 +305,14 @@
   .whoami .signout-x{color:#9aa7bb;background:none;border:none;padding:0 0 0 4px;display:flex;align-items:center;}
   .whoami .signout-x:hover{color:#fff;}
 
+  .sync-indicator{font-size:11.5px;color:#9aa7bb;margin-right:4px;white-space:nowrap;}
+  .sync-indicator.err{color:#f0a0a0;}
+  .sync-now-btn{
+    width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);
+    color:#dfe6f0;display:flex;align-items:center;justify-content:center;margin-right:10px;flex-shrink:0;
+  }
+  .sync-now-btn:hover{background:rgba(255,255,255,.16);}
+
   /* ---- Activity log ---- */
   .log-panel{
     background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
@@ -381,6 +389,10 @@
     <span class="t2">IT Credential Manager</span>
   </div>
   <div class="spacer"></div>
+  <div class="sync-indicator" id="syncStatus">Loading…</div>
+  <button class="sync-now-btn" id="syncNowBtn" title="Sync now">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+  </button>
   <div class="whoami" id="whoamiBadge" style="display:none;">
     <span class="av" id="whoamiAv"></span>
     <span id="whoamiName"></span>
@@ -445,7 +457,7 @@
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
       </div>
       <h3>Your vault is empty</h3>
-      <p>Load your credential list to get started. Nothing is saved to this file &mdash; data lives only in this browser tab and clears when you close it.</p>
+      <p>Import your credential list to get started. It's saved to your shared SharePoint site, so you and Bobby both see the same vault &mdash; nothing is written into this file itself.</p>
       <div class="actions">
         <button class="btn btn-primary" id="emptyImport">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
@@ -470,7 +482,8 @@
 
   <div class="foot-note">
     <b>Top Coat Fabrication</b> &mdash; IT Credential Manager &nbsp;•&nbsp; Restricted access, signed in via Microsoft 365.<br>
-    Credential data lives only in this browser tab and clears on close &mdash; the activity log persists so you can see what changed. Expected CSV columns: <b>Service, Name, Email, Password, Notes, License, 2FA, URL</b>
+    Credential data syncs through your shared SharePoint site (Leadership Team/IT), so you and Bobby see the same vault. Expected CSV columns: <b>Service, Name, Email, Password, Notes, License, 2FA, URL</b><br>
+    <button class="log-clear-btn" id="clearVaultBtn" style="margin-top:6px;">Clear the entire shared vault</button>
   </div>
 </div>
 </div><!-- /appShell -->
@@ -521,18 +534,116 @@
 (function(){
   "use strict";
 
-  // ---- State (memory only) ----
+  // ---- State ----
   let RECORDS = [];   // {id, Service, Name, Email, Password, Notes, License, "2FA", URL}
   let sortKey = "Service";
   let sortDir = 1;
   let editingId = null;
   let uid = 1;
-
-  // ---- Activity log (persists in this browser so you can see who changed what) ----
-  const LOG_KEY = "topcoat_vault_activity_log";
   let AUDIT = [];
-  try{ AUDIT = JSON.parse(localStorage.getItem(LOG_KEY)||"[]"); }catch(_){ AUDIT=[]; }
   let logOpen = false;
+
+  // ---- Shared sync via Microsoft Graph (same SharePoint site the ticket system uses) ----
+  const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
+  const SYNC_DRIVE_ID = "b!r9_zVd8DQEmMtqxQw-5r9M-JyJRU_o1CuFbDLpss_oQbx2CtqHNDSbGjYbfQcUKJ";
+  const SYNC_PATH = "Leadership Team/IT/IT Tickets/vault_data.json";
+  const SYNC_SCOPES = ["Files.ReadWrite.All"];
+  let lastEtag = null;
+  let syncing = false;
+
+  function graphItemUrl(){
+    const encoded = SYNC_PATH.split("/").map(encodeURIComponent).join("/");
+    return `${GRAPH_BASE}/drives/${SYNC_DRIVE_ID}/root:/${encoded}:/content`;
+  }
+  async function getGraphToken(){
+    const account = msalInstance.getActiveAccount();
+    try{
+      const resp = await msalInstance.acquireTokenSilent({ scopes: SYNC_SCOPES, account });
+      return resp.accessToken;
+    } catch(e){
+      const resp = await msalInstance.acquireTokenPopup({ scopes: SYNC_SCOPES, account });
+      return resp.accessToken;
+    }
+  }
+  function setSyncStatus(text, isError){
+    const el=$("#syncStatus");
+    if(!el) return;
+    el.textContent = text;
+    el.classList.toggle("err", !!isError);
+  }
+
+  async function syncPull(silent){
+    syncing = true;
+    if(!silent) setSyncStatus("Syncing…");
+    try{
+      const token = await getGraphToken();
+      const res = await fetch(graphItemUrl(), { headers: { Authorization: "Bearer "+token } });
+      if(res.status===404){
+        RECORDS=[]; AUDIT=[]; lastEtag=null;
+        setSyncStatus("No shared data yet — import a CSV to start it");
+        syncing=false;
+        return true;
+      }
+      if(res.status===403){
+        setSyncStatus("Access denied to the shared vault file — check SharePoint permissions with Chirt", true);
+        syncing=false;
+        return false;
+      }
+      if(!res.ok){
+        setSyncStatus("Sync failed (HTTP "+res.status+")", true);
+        syncing=false;
+        return false;
+      }
+      lastEtag = res.headers.get("ETag");
+      const data = await res.json();
+      RECORDS = Array.isArray(data.records) ? data.records : [];
+      AUDIT = Array.isArray(data.auditLog) ? data.auditLog : [];
+      uid = RECORDS.reduce((m,r)=>Math.max(m, (r.id||0)+1), 1);
+      setSyncStatus(data.updatedBy ? ("Synced · last change by "+data.updatedBy) : "Synced");
+      syncing=false;
+      return true;
+    } catch(e){
+      console.error("syncPull error:", e);
+      setSyncStatus("Couldn't reach the shared vault. Check your connection.", true);
+      syncing=false;
+      return false;
+    }
+  }
+
+  async function syncPush(){
+    setSyncStatus("Saving…");
+    const payload = { records: RECORDS, auditLog: AUDIT, updatedAt: new Date().toISOString(), updatedBy: currentUserLabel };
+    try{
+      const token = await getGraphToken();
+      const headers = { Authorization: "Bearer "+token, "Content-Type": "application/json" };
+      if(lastEtag) headers["If-Match"] = lastEtag;
+      const res = await fetch(graphItemUrl(), { method:"PUT", headers, body: JSON.stringify(payload) });
+      if(res.status===412){
+        toast("Someone else just updated the vault — reloading their version. Please redo your last change.","warn");
+        await syncPull(true);
+        render(); renderLog();
+        return false;
+      }
+      if(res.status===403){
+        setSyncStatus("Access denied saving to the shared vault — check SharePoint permissions", true);
+        toast("Couldn't save — access denied","warn");
+        return false;
+      }
+      if(!res.ok){
+        setSyncStatus("Save failed (HTTP "+res.status+")", true);
+        toast("Couldn't save changes — will retry next edit","warn");
+        return false;
+      }
+      lastEtag = res.headers.get("ETag");
+      setSyncStatus("Synced · last change by "+currentUserLabel);
+      return true;
+    } catch(e){
+      console.error("syncPush error:", e);
+      setSyncStatus("Couldn't reach the shared vault to save. Check your connection.", true);
+      toast("Couldn't save — offline?","warn");
+      return false;
+    }
+  }
 
   function logAction(type, what, meta){
     AUDIT.unshift({
@@ -540,7 +651,6 @@
       who: currentUserLabel, ts: new Date().toISOString()
     });
     if(AUDIT.length>500) AUDIT.length=500; // keep it from growing forever
-    try{ localStorage.setItem(LOG_KEY, JSON.stringify(AUDIT)); }catch(_){}
     renderLog();
   }
   function fmtLogTime(iso){
@@ -581,7 +691,7 @@
     },
     cache: { cacheLocation: "localStorage", storeAuthStateInCookie: false }
   };
-  const loginRequest = { scopes: ["User.Read"] };
+  const loginRequest = { scopes: ["User.Read", "Files.ReadWrite.All"] };
   let msalInstance = null;
   let currentUserLabel = "Unknown";
   const inIframe = (() => { try { return window.self !== window.top; } catch(_) { return true; } })();
@@ -613,7 +723,7 @@
     $("#authDeniedPanel").style.display="block";
     $("#deniedWho").textContent = "Signed in as: " + (account.name||account.username||"unknown account");
   }
-  function showApp(account){
+  async function showApp(account){
     $("#authGate").classList.add("hidden");
     $("#appShell").style.display="block";
     $("#whoamiBadge").style.display="flex";
@@ -621,6 +731,8 @@
     $("#whoamiAv").textContent = initialsOf(account.name||account.username);
     $("#whoamiName").textContent = account.name || account.username;
     syncBarHeight();
+    await syncPull(false);
+    rebuildFilters();
     render();
     renderLog();
   }
@@ -826,7 +938,7 @@
   }
 
   // ---- Import ----
-  function importText(text){
+  async function importText(text){
     const rows=parseCSV(text);
     if(!rows.length){toast("No rows found in file","warn");return;}
     const header=rows[0].map(h=>h.trim());
@@ -850,6 +962,7 @@
     render();
     logAction("import", out.length+" credentials imported from CSV", "Replaced current vault contents");
     toast(out.length+" credentials imported","ok");
+    await syncPush();
   }
   function normalize2fa(v){
     v=(v||"").trim().toLowerCase();
@@ -1137,7 +1250,7 @@
   $("#fPwEye").addEventListener("click",()=>{
     const p=$("#fPassword");p.type=p.type==="password"?"text":"password";
   });
-  $("#saveBtn").addEventListener("click",()=>{
+  $("#saveBtn").addEventListener("click", async ()=>{
     const rec={
       Service:$("#fService").value.trim(),
       Name:$("#fName").value.trim(),
@@ -1162,14 +1275,16 @@
       toast("Credential added","ok");
     }
     rebuildFilters();render();closeModal();
+    await syncPush();
   });
-  $("#deleteBtn").addEventListener("click",()=>{
+  $("#deleteBtn").addEventListener("click", async ()=>{
     if(editingId==null) return;
     const r=RECORDS.find(x=>x.id===editingId);
     RECORDS=RECORDS.filter(x=>x.id!==editingId);
     rebuildFilters();render();closeModal();
     if(r) logAction("delete", (r.Service||r.Name||"Credential"), r.Name?("for "+r.Name):"");
     toast("Credential deleted","ok");
+    await syncPush();
   });
 
   // ---- Keyboard ----
@@ -1198,6 +1313,30 @@
   $("#logPanelHead").addEventListener("click",()=>{
     logOpen=!logOpen;
     $("#logPanel").classList.toggle("open", logOpen);
+  });
+
+  // ---- Clear the shared vault (affects everyone signed in, not just this browser) ----
+  $("#clearVaultBtn").addEventListener("click", async ()=>{
+    if(!RECORDS.length){toast("Vault is already empty","warn");return;}
+    if(!confirm("Clear all "+RECORDS.length+" credentials from the SHARED vault? This affects Bobby too and can't be undone — export a CSV backup first if you're not sure.")) return;
+    const count=RECORDS.length;
+    RECORDS=[];
+    rebuildFilters();render();
+    logAction("delete", "Cleared the shared vault", count+" credentials removed for everyone");
+    toast("Vault cleared","ok");
+    await syncPush();
+  });
+
+  // ---- Manual sync + refresh when the tab regains focus ----
+  $("#syncNowBtn").addEventListener("click", async ()=>{
+    if(syncing) return;
+    const ok = await syncPull(false);
+    if(ok){ rebuildFilters(); render(); renderLog(); toast("Synced with the shared vault","ok"); }
+  });
+  window.addEventListener("focus", async ()=>{
+    if(!msalInstance || !msalInstance.getActiveAccount() || syncing) return;
+    const ok = await syncPull(true);
+    if(ok){ rebuildFilters(); render(); renderLog(); }
   });
 
   initAuth();
