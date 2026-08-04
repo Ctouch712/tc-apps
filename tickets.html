@@ -64,6 +64,29 @@
   --shadow-sm: 0 3px 10px rgba(15,25,55,.06);
 }
 
+/* Confirm dialog: allow multi-line previews (migration report) */
+#confirm-msg{white-space:pre-line}
+
+/* Header theme switch */
+.theme-switch{
+  display:inline-flex; align-items:center; gap:2px;
+  background:var(--panel-2); border:1px solid var(--line);
+  border-radius:999px; padding:3px;
+}
+.theme-switch button{
+  display:grid; place-items:center;
+  width:30px; height:26px; padding:0;
+  background:transparent; border:0; border-radius:999px;
+  color:var(--ink-3); cursor:pointer;
+  transition:background .15s, color .15s;
+}
+.theme-switch button svg{width:15px; height:15px}
+.theme-switch button:hover{color:var(--ink-2)}
+.theme-switch button[aria-pressed="true"]{
+  background:var(--brand); color:var(--brand-ink);
+}
+@media (max-width: 620px){ .theme-switch{display:none} }
+
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
@@ -1023,7 +1046,7 @@ td.c-time{font-family:var(--font-mono); color:var(--ink-2); text-align:right; fo
   .page-head{flex-direction:column; align-items:flex-start}
   .brand-line-1{font-size:10px}
   .brand-line-2{font-size:14px}
-  table.tickets .c-owner, table.tickets th:nth-child(5){display:none}
+  table.tickets .c-owner, table.tickets .c-user{display:none}
 }
 @media (max-width: 520px){
   .stats{grid-template-columns:1fr}
@@ -1054,7 +1077,7 @@ td.c-time{font-family:var(--font-mono); color:var(--ink-2); text-align:right; fo
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
       </svg>
-      <input id="q" type="text" placeholder="Search tickets, owners, descriptions…" autocomplete="off">
+      <input id="q" type="text" placeholder="Search tickets, users, techs, descriptions…" autocomplete="off">
       <div class="kbd"><span id="kbd">⌘K</span></div>
     </div>
 
@@ -1062,6 +1085,18 @@ td.c-time{font-family:var(--font-mono); color:var(--ink-2); text-align:right; fo
       <div class="sync-status" id="sync" data-s="loading" title="Loading…">
         <span class="sync-dot"></span>
         <span id="sync-text">Loading…</span>
+      </div>
+      <div class="theme-switch" role="group" aria-label="Colour theme">
+        <button type="button" id="theme-light-btn" aria-pressed="false" title="Light theme" aria-label="Light theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>
+          </svg>
+        </button>
+        <button type="button" id="theme-dark-btn" aria-pressed="false" title="Dark theme" aria-label="Dark theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
       </div>
       <button class="btn" id="new-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1122,7 +1157,7 @@ td.c-time{font-family:var(--font-mono); color:var(--ink-2); text-align:right; fo
             </svg>
             <span id="theme-label">Light theme</span>
           </button>
-          <button data-act="clear" style="color:var(--danger)">
+<button data-act="clear" style="color:var(--danger)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
             </svg>
@@ -1203,7 +1238,8 @@ td.c-time{font-family:var(--font-mono); color:var(--ink-2); text-align:right; fo
             <th data-sort="status" style="width:120px">Status <span class="sort-arrow"></span></th>
             <th data-sort="priority" style="width:110px">Priority <span class="sort-arrow"></span></th>
             <th data-sort="description">Issue <span class="sort-arrow"></span></th>
-            <th data-sort="owner" style="width:170px">Owner <span class="sort-arrow"></span></th>
+            <th class="c-user" data-sort="user" style="width:150px">User <span class="sort-arrow"></span></th>
+            <th class="c-owner" data-sort="owner" style="width:150px">Worked by <span class="sort-arrow"></span></th>
             <th data-sort="time" style="width:80px; text-align:right">Time <span class="sort-arrow"></span></th>
           </tr>
         </thead>
@@ -1258,8 +1294,10 @@ td.c-time{font-family:var(--font-mono); color:var(--ink-2); text-align:right; fo
 
     <div class="grid-2">
       <div class="field">
-        <label for="f-owner">Owner</label>
-        <input id="f-owner" type="text" list="owners" placeholder="Who's on it?">
+        <label for="f-user">User</label>
+        <input id="f-user" type="text" list="users" placeholder="Who has the issue?">
+        <label for="f-owner">Worked by</label>
+        <input id="f-owner" type="text" list="owners" placeholder="Who handled it?">
         <label>Images</label>
         <div class="image-upload-zone" id="upload-zone">Click to upload or drag images</div>
         <div class="image-thumbs" id="image-thumbs"></div>
@@ -1300,6 +1338,7 @@ td.c-time{font-family:var(--font-mono); color:var(--ink-2); text-align:right; fo
     <datalist id="owners">
       <option value="Chirt"><option value="Han"><option value="Bobby"><option value="Kim"><option value="Joel"><option value="Stephanie">
     </datalist>
+    <datalist id="users"></datalist>
   </div>
   <div class="drawer-foot">
     <button class="btn ghost" id="delete-btn" style="color:var(--danger); display:none">
@@ -1666,6 +1705,7 @@ async function pushNow(){
 ──────────────────────────────────────────────────────────── */
 const STORAGE_KEY = "topcoat_tickets_v2";
 const THEME_KEY = "topcoat_tickets_theme";
+const MIGRATION_KEY = "topcoat_user_migration_v1";
 
 // Seed sample tickets so the app has life on first load; overwritten by import.
 const SEED = [
@@ -1758,19 +1798,35 @@ function persist(){
 }
 
 /* ──── Theme ──── */
-function initTheme(){
-  const saved = localStorage.getItem(THEME_KEY) || "dark";
-  document.body.setAttribute("data-theme", saved);
-  document.getElementById("theme-label").textContent = saved === "dark" ? "Light theme" : "Dark theme";
+/* Single source of truth for the UI state, so the header switch and the
+   overflow-menu item can never disagree about the current theme. */
+function syncThemeUI(theme){
+  const lbl = document.getElementById("theme-label");
+  if(lbl) lbl.textContent = theme === "dark" ? "Light theme" : "Dark theme";
+  const lb = document.getElementById("theme-light-btn");
+  const db = document.getElementById("theme-dark-btn");
+  if(lb) lb.setAttribute("aria-pressed", String(theme === "light"));
+  if(db) db.setAttribute("aria-pressed", String(theme === "dark"));
 }
-function toggleTheme(){
-  const cur = document.body.getAttribute("data-theme");
-  const next = cur === "dark" ? "light" : "dark";
+
+function setTheme(theme, { persist = true } = {}){
+  const next = theme === "light" ? "light" : "dark";
   document.body.setAttribute("data-theme", next);
-  localStorage.setItem(THEME_KEY, next);
-  document.getElementById("theme-label").textContent = next === "dark" ? "Light theme" : "Dark theme";
-  // Charts use resolved CSS var values baked into SVG stroke attributes, so redraw them.
+  if(persist){ try { localStorage.setItem(THEME_KEY, next); } catch(_){} }
+  syncThemeUI(next);
+  // Charts bake resolved CSS var values into SVG attributes, so redraw them.
   if(typeof renderCharts === "function") renderCharts();
+  return next;
+}
+
+function initTheme(){
+  /* Defaults to dark deliberately rather than following prefers-color-scheme,
+     so nobody's existing setup flips on them after this update. */
+  setTheme(localStorage.getItem(THEME_KEY) || "dark", { persist: false });
+}
+
+function toggleTheme(){
+  return setTheme(document.body.getAttribute("data-theme") === "dark" ? "light" : "dark");
 }
 
 /* ──── Helpers ──── */
@@ -1853,7 +1909,7 @@ function filteredTickets(){
     if(statusFilter !== "all" && String(t.status || "").toLowerCase() !== statusFilter.toLowerCase()) return false;
     if(priorityFilter !== "all" && String(t.priority || "").toLowerCase() !== priorityFilter.toLowerCase()) return false;
     if(q){
-      const hay = [t.id, t.description, t.owner, t.notes, t.actions, t.impact, t.loggedBy, t.resolvedBy]
+      const hay = [t.id, t.description, t.user, t.owner, t.notes, t.actions, t.impact, t.loggedBy, t.resolvedBy]
         .map(v => String(v || "").toLowerCase()).join(" ");
       if(!hay.includes(q)) return false;
     }
@@ -2097,7 +2153,7 @@ function renderList(){
   });
 
   if(!list.length){
-    tbody.innerHTML = `<tr><td colspan="7">
+    tbody.innerHTML = `<tr><td colspan="8">
       <div class="empty">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
@@ -2111,6 +2167,7 @@ function renderList(){
 
   tbody.innerHTML = list.map(t => {
     const av = avatarFor(t.owner);
+    const uav = avatarFor(t.user);
     const pk = priorityKey(t.priority);
     return `
       <tr data-id="${esc(t.id)}">
@@ -2123,6 +2180,12 @@ function renderList(){
             <div class="desc-1">${esc(t.description || "—")}</div>
             ${t.impact ? `<div class="desc-2">${esc(t.impact)}</div>` : ""}
           </div>
+        </td>
+        <td class="c-user">
+          <span class="owner-chip">
+            ${t.user ? `<span class="avatar" style="background:${uav.bg}; color:${uav.fg}">${esc(uav.initials)}</span>` : ""}
+            ${esc(t.user || "—")}
+          </span>
         </td>
         <td class="c-owner">
           <span class="owner-chip">
@@ -2167,6 +2230,7 @@ function renderBoard(){
                   <span class="chip ${priorityKey(t.priority)}">${esc(t.priority || "Medium")}</span>
                 </div>
                 <div class="k-desc">${esc(t.description || "—")}</div>
+                ${t.user ? `<div style="font-size:11.5px; color:var(--ink-3); margin-top:2px">User: ${esc(t.user)}</div>` : ""}
                 <div class="k-foot">
                   <span class="owner-chip">
                     <span class="avatar" style="background:${av.bg}; color:${av.fg}; width:20px; height:20px; font-size:9.5px">${esc(av.initials)}</span>
@@ -2294,7 +2358,9 @@ function renderCharts(){
   const statSegs = S.map(s => ({ label: s.key, color: s.color, value: scoped.filter(s.match).length }));
   const statTotal = statSegs.reduce((a,s) => a + s.value, 0);
 
-  // Workload by owner (top 6 by ticket count in scope)
+  /* Workload by whoever worked the ticket (the field labelled "Worked by").
+     Deliberately NOT the new `user` field - that would count who reported
+     issues, not who did the work. */
   // Filter based on workloadFilter: "me" (just Chirt) or "all" (everyone)
   const ownerMap = new Map();
   for(const t of scoped){
@@ -2344,7 +2410,7 @@ function renderCharts(){
     </div>
 
     <div class="chart-card">
-      <h3 class="chart-title"><span class="dot" style="background:${cssVar("--accent")}"></span>Workload<span style="color:var(--ink-4); font-weight:400; margin-left:4px">by owner · ${esc(scopeLabel)}</span>${workloadToggle}</h3>
+      <h3 class="chart-title"><span class="dot" style="background:${cssVar("--accent")}"></span>Workload<span style="color:var(--ink-4); font-weight:400; margin-left:4px">by who worked it · ${esc(scopeLabel)}</span>${workloadToggle}</h3>
       <div class="chart-body">
         ${ ownerItems.length ? buildHBars(ownerItems, scoped.length) : `<div class="chart-empty">No tickets in scope</div>` }
       </div>
@@ -2362,10 +2428,17 @@ function openDrawer(id){
     : `<span style="color:var(--brand)">${esc(nextId())}</span>${NBSP}${NBSP}<span style="opacity:0.5">·</span>${NBSP}${NBSP}<span style="color:var(--ink)">New ticket</span>`;
 
   const g = k => document.getElementById("f-" + k);
+  /* Suggest users we've already recorded, so the list grows as it gets used. */
+  const ul = document.getElementById("users");
+  if(ul){
+    const seen = Array.from(new Set(tickets.map(x => (x.user || "").trim()).filter(Boolean))).sort();
+    ul.innerHTML = seen.map(nm => `<option value="${esc(nm)}">`).join("");
+  }
   g("description").value = t?.description || "";
   g("date").value        = t?.date || new Date().toISOString().slice(0,10);
   g("status").value      = t?.status || "Open";
   g("priority").value    = t?.priority || "Medium";
+  g("user").value        = t?.user  || "";
   g("owner").value       = t?.owner || "";
   g("time").value        = t?.time || "";
   g("impact").value      = t?.impact || "";
@@ -2419,6 +2492,7 @@ function saveTicket(){
     status: g("status"),
     priority: g("priority"),
     description,
+    user: g("user"),
     owner: g("owner"),
     impact: g("impact"),
     actions: g("actions"),
@@ -2466,6 +2540,83 @@ function closeConfirm(ok){
   document.getElementById("confirm-scrim").classList.remove("open");
   if(ok && confirmCb) confirmCb();
   confirmCb = null;
+}
+
+/* ──── One-time migration: colleague names out of "Worked by" into "User" ────
+   `owner` historically held the person who HAD the issue, while Chirt did the
+   work. This moves those names into `user` and stamps Worked by as Chirt.
+   Guarded on an empty `user`, so a second run is a no-op instead of
+   overwriting migrated names with "Chirt". */
+const MIGRATION_TECH = "Chirt";
+
+/* Migrated-ness is "has the key at all", NOT "has a non-empty value".
+   A ticket whose Worked by was blank ends up with user:"" — legitimately
+   userless. Testing emptiness would re-migrate it and fabricate "Chirt". */
+function needsUserMigration(t){
+  return t.user === undefined || t.user === null;
+}
+
+function migrationPlan(){
+  const pending = tickets.filter(needsUserMigration);
+  const byName = new Map();
+  for(const t of pending){
+    const n = String(t.owner || "").trim() || "(blank)";
+    byName.set(n, (byName.get(n) || 0) + 1);
+  }
+  const conflicts = pending.filter(t => {
+    const r = String(t.resolvedBy || "").trim();
+    return r && r !== MIGRATION_TECH;
+  }).length;
+  return { pending, byName, conflicts, already: tickets.length - pending.length };
+}
+
+function runUserMigration(){
+  if(cloudFailed){
+    toast("Cloud load failed this session — reload and sync before migrating.", "err");
+    return;
+  }
+  const plan = migrationPlan();
+  if(!plan.pending.length){
+    toast("Nothing to migrate — every ticket already has a User.", "ok");
+    return;
+  }
+  const breakdown = Array.from(plan.byName.entries())
+    .sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])))
+    .map(([n, c]) => `    ${n} \u2192 ${c} ticket${c === 1 ? "" : "s"}`)
+    .join("\n");
+
+  const msg =
+    `${plan.pending.length} of ${tickets.length} tickets will change.\n` +
+    (plan.already ? `${plan.already} already have a User and will be skipped.\n` : "") +
+    `\nUser will be copied from the current Worked by value:\n${breakdown}\n` +
+    `\nWorked by will then be set to "${MIGRATION_TECH}" on all ${plan.pending.length}.\n` +
+    (plan.conflicts
+      ? `\nHeads up: ${plan.conflicts} of these have a Resolved by that isn't ${MIGRATION_TECH}. ` +
+        `Those are left as-is, so they will disagree with Worked by.\n`
+      : "") +
+    (mode === "online"
+      ? `\nChanges save to SharePoint.`
+      : `\nYou are OFFLINE \u2014 changes stay in local storage until you sign in and sync.`) +
+    `\n\nA backup file downloads first. This cannot be undone from inside the app.`;
+
+  confirmDialog("Migrate names into User?", msg, () => {
+    try {
+      download(
+        `topcoat-tickets-premigration-${new Date().toISOString().slice(0,10)}.json`,
+        "application/json", JSON.stringify(tickets, null, 2)
+      );
+    } catch(_){ /* a failed backup must not silently become a failed migration */ }
+    let n = 0;
+    for(const t of tickets){
+      if(!needsUserMigration(t)) continue;
+      t.user  = String(t.owner || "").trim();
+      t.owner = MIGRATION_TECH;
+      n++;
+    }
+    persist();
+    renderAll();
+    toast(`Migrated ${n} ticket${n === 1 ? "" : "s"}`, "ok");
+  });
 }
 
 /* ──── Toast ──── */
@@ -2553,10 +2704,7 @@ function restoreBackup(file){
           tickets = normalized;
           if(importedSettings){
             if(importedSettings.theme && (importedSettings.theme === "dark" || importedSettings.theme === "light")){
-              document.body.setAttribute("data-theme", importedSettings.theme);
-              try { localStorage.setItem(THEME_KEY, importedSettings.theme); } catch {}
-              const lbl = document.getElementById("theme-label");
-              if(lbl) lbl.textContent = importedSettings.theme === "dark" ? "Light theme" : "Dark theme";
+              setTheme(importedSettings.theme);
             }
             if(importedSettings.weeklyMode && (importedSettings.weeklyMode === "active" || importedSettings.weeklyMode === "last7")){
               weeklyMode = importedSettings.weeklyMode;
@@ -2724,8 +2872,8 @@ function download(name, mime, text){
   setTimeout(() => URL.revokeObjectURL(url), 500);
 }
 function exportCsv(){
-  const cols = ["id","date","status","priority","description","owner","impact","actions","notes","loggedBy","resolvedBy","time"];
-  const head = ["ID","Date","Status","Priority","Description","Owner","Impact","Actions","Notes","Logged By","Resolved By","Time (min)"];
+  const cols = ["id","date","status","priority","description","user","owner","impact","actions","notes","loggedBy","resolvedBy","time"];
+  const head = ["ID","Date","Status","Priority","Description","User","Worked By","Impact","Actions","Notes","Logged By","Resolved By","Time (min)"];
   const cell = v => {
     v = v == null ? "" : String(v);
     return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
@@ -2748,7 +2896,7 @@ function importXlsx(file){
       if(!rows.length) throw new Error(`Sheet "${sheetName}" is empty`);
 
       // Find header row (the one with at least 3 of our known keywords)
-      const knownHeaders = /^(id|ticket|#)|^date|^status|^priority|^issue|^description|^owner|^assigned|^impact|^action|^notes|^logged|^resolved|^time|^minutes|^duration/i;
+      const knownHeaders = /^(id|ticket|#)|^date|^status|^priority|^issue|^description|^owner|^assigned|^worked|^user|^affected|^impact|^action|^notes|^logged|^resolved|^time|^minutes|^duration/i;
       let headerIdx = 0, headers = rows[0];
       for(let i = 0; i < Math.min(rows.length, 5); i++){
         const hits = rows[i].filter(c => knownHeaders.test(String(c || "").trim())).length;
@@ -2785,7 +2933,8 @@ function headerName(h){
   if(/^status|state/.test(s)) return "status";
   if(/^prio|priority|severity/.test(s)) return "priority";
   if(/^(issue|description|desc|problem|summary|title)/.test(s)) return "description";
-  if(/^(owner|assigned|assignee|tech)/.test(s)) return "owner";
+  if(/^(user|affected|requester|reported\s*for|employee)/.test(s)) return "user";
+  if(/^(owner|assigned|assignee|tech|worked)/.test(s)) return "owner";
   if(/^impact|affected|scope/.test(s)) return "impact";
   if(/^(action|steps|work\s*done|resolution\s*steps)/.test(s)) return "actions";
   if(/^(note|comments?|remarks)/.test(s)) return "notes";
@@ -2802,6 +2951,7 @@ function normalizeRow(rec){
     status:      normStatus(rec.status),
     priority:    normPriority(rec.priority),
     description: (rec.description || "").toString().trim(),
+    user:        (rec.user  || "").toString().trim(),
     owner:       (rec.owner || "").toString().trim(),
     impact:      (rec.impact || "").toString().trim(),
     actions:     (rec.actions || "").toString().trim(),
@@ -2860,6 +3010,22 @@ function normTime(v){
 /* ──── Wire up UI ──── */
 document.addEventListener("DOMContentLoaded", async () => {
   initTheme();
+
+  /* Auto-run the user/worked-by migration on first boot if not yet done. */
+  if(localStorage.getItem(MIGRATION_KEY) !== "done"){
+    let n = 0;
+    for(const t of tickets){
+      if(!needsUserMigration(t)) continue;
+      t.user  = String(t.owner || "").trim();
+      t.owner = MIGRATION_TECH;
+      n++;
+    }
+    if(n){
+      try { localStorage.setItem(MIGRATION_KEY, "done"); } catch(_){}
+      try { schedulePush(); } catch(_){}  // push to SharePoint if online
+      console.log(`[tickets] Auto-migrated ${n} ticket${n === 1 ? "" : "s"}: moved names to User, set Worked by to ${MIGRATION_TECH}`);
+    }
+  }
 
   // Kbd hint (mac vs windows)
   const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
@@ -2969,6 +3135,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // View toggle
+  const tlb = document.getElementById("theme-light-btn");
+  const tdb = document.getElementById("theme-dark-btn");
+  if(tlb) tlb.addEventListener("click", () => setTheme("light"));
+  if(tdb) tdb.addEventListener("click", () => setTheme("dark"));
   document.getElementById("view-list").addEventListener("click", () => setView("list"));
   document.getElementById("view-board").addEventListener("click", () => setView("board"));
 
