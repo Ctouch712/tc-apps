@@ -1383,6 +1383,12 @@ const OFFLINE_KEY = "topcoat_tickets_offline_mode";
 let msalApp = null;
 let msalAccount = null;
 let siteId = null, driveId = null, fileId = null;
+/* Where the data file actually lives. May differ from SP_CONFIG.filePath if the
+   folder was moved and we recovered the file by name. Saves write back here. */
+let resolvedPath = null;
+/* True when a cloud load failed this session. Blocks pushes so a failed read
+   can never overwrite good SharePoint data with a stale local cache. */
+let cloudFailed = false;
 let mode = "offline";           // "online" | "offline"
 let saveTimer = 0;
 let saveInFlight = false;
@@ -1528,8 +1534,10 @@ async function graphFetch(path, opts = {}){
   return res.text();
 }
 
-async function discoverFile(){
-  if(driveId && fileId) return;
+/* Resolve the site and its Documents drive. Deliberately does NOT touch the data
+   file, so saving never depends on the file already existing. */
+async function discoverDrive(){
+  if(driveId) return driveId;
   const search = await graphFetch(`/sites?search=${encodeURIComponent(SP_CONFIG.siteName)}`);
   const list = search.value || [];
   const site = list.find(s => s.name === SP_CONFIG.siteName)
@@ -1541,35 +1549,101 @@ async function discoverFile(){
   const drive = (drives.value || []).find(d => d.name === "Documents") || (drives.value || [])[0];
   if(!drive) throw new Error("Documents drive not found");
   driveId = drive.id;
-  const file = await graphFetch(`/drives/${driveId}/root:${SP_CONFIG.filePath}`);
-  fileId = file.id;
+  return driveId;
+}
+
+/* Resolve the data file. Tries the configured path first, then falls back to a
+   library-wide search by filename, so moving the folder no longer breaks sync.
+   With required:false, returns null instead of throwing when the file is absent. */
+async function discoverFile({ required = true } = {}){
+  await discoverDrive();
+  if(fileId) return fileId;
+  const fileName = SP_CONFIG.filePath.split("/").filter(Boolean).pop();
+
+  // 1) exact configured path
+  try {
+    const file = await graphFetch(`/drives/${driveId}/root:${SP_CONFIG.filePath}`);
+    fileId = file.id;
+    resolvedPath = SP_CONFIG.filePath;
+    return fileId;
+  } catch(e){
+    // only a 404 is recoverable; 401/403/429 should surface as-is
+    if(!/Graph 404/.test(String(e && e.message || e))) throw e;
+  }
+
+  // 2) fall back to searching the library by filename
+  let hits = null;
+  try {
+    hits = await graphFetch(
+      `/drives/${driveId}/root/search(q='${encodeURIComponent(fileName)}')`
+    );
+  } catch(_){ /* search unavailable — treated as not found below */ }
+
+  const found = (hits && hits.value || []).find(f => f.name === fileName && f.file);
+  if(found){
+    fileId = found.id;
+    const parent = (found.parentReference && found.parentReference.path) || "";
+    resolvedPath = parent.replace(/^\/drives\/[^/]+\/root:/, "") + "/" + fileName;
+    console.warn(
+      `[tickets] Data file recovered at "${resolvedPath}" but SP_CONFIG.filePath ` +
+      `is "${SP_CONFIG.filePath}". Sync is working; update the config to silence this.`
+    );
+    return fileId;
+  }
+
+  fileId = null;
+  resolvedPath = null;
+  if(required){
+    throw new Error(
+      `Data file "${fileName}" not found in the ${SP_CONFIG.siteName} Documents ` +
+      `library — searched the configured path and the whole library by name.`
+    );
+  }
+  return null;
 }
 
 async function loadFromSharePoint(){
-  await discoverFile();
+  await discoverFile({ required: true });
   const content = await graphFetch(`/drives/${driveId}/items/${fileId}/content`);
-  return Array.isArray(content) ? content : [];
+
+  // Graph 302s /content to storage, which often returns the JSON without an
+  // application/json content-type. graphFetch then hands back a string.
+  let data = content;
+  if(typeof data === "string"){
+    try { data = JSON.parse(data); }
+    catch { throw new Error("SharePoint returned unparseable ticket data — refusing to load."); }
+  }
+  // Never coerce to [] here: doing so silently empties the board and the next
+  // save would push that emptiness back over the real file.
+  if(!Array.isArray(data)) throw new Error("Ticket data is not an array — refusing to load.");
+  return data;
 }
 
 async function saveToSharePoint(data){
-  await discoverFile();
-  await graphFetch(`/drives/${driveId}/items/${fileId}/content`, {
+  if(!Array.isArray(data)) throw new Error("Refusing to save non-array ticket data.");
+  if(cloudFailed) throw new Error("Cloud load failed this session — save blocked to protect SharePoint data.");
+  await discoverDrive();
+  // Path-based PUT creates the file if it is missing and updates it if present,
+  // so the app can recover its own data file instead of 404ing forever.
+  const path = resolvedPath || SP_CONFIG.filePath;
+  await graphFetch(`/drives/${driveId}/root:${path}:/content`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data, null, 2)
   });
+  if(!fileId){ try { await discoverFile({ required: false }); } catch(_){} }
 }
 
 /* ── Debounced push ── */
 function schedulePush(){
-  if(mode !== "online") return;
+  if(mode !== "online" || cloudFailed) return;
   clearTimeout(saveTimer);
   setStatus("dirty", "Unsaved changes");
   saveTimer = setTimeout(pushNow, 800);
 }
 
 async function pushNow(){
-  if(mode !== "online") return;
+  if(mode !== "online" || cloudFailed) return;
   if(saveInFlight){ savePending = true; return; }
   saveInFlight = true;
   setStatus("saving", "Saving…");
@@ -1620,6 +1694,12 @@ let weeklyMode = localStorage.getItem("topcoat_weekly_mode") || "active"; // "ac
 let workloadFilter = localStorage.getItem("topcoat_workload_filter") || "me"; // "me" | "all"
 
 /* ──── Storage ──── */
+/* Offline can mean "user chose offline" or "cloud load failed". Say which. */
+function setOfflineStatus(){
+  if(cloudFailed) setStatus("err", "Cloud load failed — local, read-only");
+  else setStatus("offline", "Offline · click to sign in");
+}
+
 async function loadTickets(){
   if(mode === "online"){
     setStatus("loading", "Loading from SharePoint…");
@@ -1638,8 +1718,15 @@ async function loadTickets(){
       return;
     } catch(e){
       console.error("SharePoint load failed:", e);
-      setStatus("err", "Cloud load failed — using local");
-      toast("Couldn't reach SharePoint. Working from local cache.", "err");
+      /* Fail safe. Previously mode stayed "online" here, so schedulePush() passed
+         its guard and the next edit pushed the stale local cache over the real
+         SharePoint file. Dropping to offline makes the fallback read-only.
+         Intentionally NOT written to OFFLINE_KEY: a reload retries the cloud,
+         so recovery needs no localStorage surgery. */
+      cloudFailed = true;
+      mode = "offline";
+      setStatus("err", "Cloud load failed — local, read-only");
+      toast("Couldn't reach SharePoint. Working read-only from local cache — reload to retry.", "err");
       // fall through to local cache
     }
   }
@@ -1655,13 +1742,13 @@ async function loadTickets(){
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets)); } catch {}
         setTimeout(() => toast(`Cleaned ${removed} empty ticket${removed === 1 ? "" : "s"}`, "ok"), 500);
       }
-      if(mode === "offline") setStatus("offline", "Offline · click to sign in");
+      if(mode === "offline") setOfflineStatus();
       return;
     }
   } catch {}
   tickets = structuredClone(SEED);
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets)); } catch {}
-  if(mode === "offline") setStatus("offline", "Offline · click to sign in");
+  if(mode === "offline") setOfflineStatus();
 }
 
 function persist(){
@@ -1824,7 +1911,12 @@ function renderStats(){
   const total = scoped.length;
   const open = scoped.filter(t => (t.status || "").toLowerCase() === "open").length;
   const prog = scoped.filter(t => /progress/i.test(t.status || "")).length;
-  const crit = scoped.filter(t => (t.priority || "").toLowerCase() === "critical").length;
+  /* Only count criticals that are still live. This previously counted every
+     critical ticket ever logged, so the "require attention" label was false. */
+  const crit = scoped.filter(t =>
+    (t.priority || "").toLowerCase() === "critical" &&
+    !/(closed|resolved|done)/i.test(t.status || "")
+  ).length;
   const blk  = scoped.filter(t => /block/i.test(t.status || "")).length;
   const closed = scoped.filter(t => /(closed|resolved|done)/i.test(t.status || "")).length;
   const totalMin = scoped.reduce((a,t) => a + (Number(t.time) || 0), 0);
@@ -2487,6 +2579,9 @@ function restoreBackup(file){
 /* ──── Image Upload to SharePoint ──── */
 async function uploadImageToSharePoint(file){
   if(!msalAccount || !msalApp) throw new Error("Not signed in");
+  /* driveId may still be null if no load has run yet — resolve it or the URL
+     below is built with "undefined" and fails with a confusing 400. */
+  await discoverDrive();
   const token = await getToken();
   
   // Generate unique filename
